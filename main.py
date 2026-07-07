@@ -634,7 +634,10 @@ async def api_order(request: Request):
     row = await get_user(tid)
     if not row or not row['session_string']:
         return {"ok": False, "error": "Akkaunt ulanmagan"}
-    price = qty * USERNAME_PRICE
+    
+    price_per_item = int(await get_setting("username_price", 5000))
+    price = qty * price_per_item
+    
     if (row['balance'] or 0) < price:
         return {"ok": False, "error": "Balans yetarli emas"}
     await deduct_balance(tid, price)
@@ -645,37 +648,6 @@ async def api_order(request: Request):
         await db.commit()
     bot_instance = Bot(token=BOT_TOKEN)
     asyncio.create_task(run_sniper(bot_instance, tid, order_id, cat, qty))
-    return {"ok": True}
-
-@app.post("/api/receipt")
-async def api_receipt(request: Request, photo: UploadFile = File(...), init_data: str = Form(...)):
-    user = verify_init_data(init_data)
-    if not user:
-        raise HTTPException(403)
-    tid = user['id']
-    content = await photo.read()
-    bot_instance = Bot(token=BOT_TOKEN)
-    # Bazaga yozamiz
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("INSERT INTO payments (telegram_id, status) VALUES (?, 'pending')", (tid,))
-        await db.commit()
-    # Adminga yuboramiz
-    markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ 10,000", callback_data=f"pay_{tid}_10000"),
-         InlineKeyboardButton(text="✅ 25,000", callback_data=f"pay_{tid}_25000")],
-        [InlineKeyboardButton(text="✅ 50,000", callback_data=f"pay_{tid}_50000"),
-         InlineKeyboardButton(text="✅ 100,000", callback_data=f"pay_{tid}_100000")],
-        [InlineKeyboardButton(text="❌ Rad etish", callback_data=f"pay_reject_{tid}")]
-    ])
-    try:
-        from aiogram.types import BufferedInputFile
-        input_photo = BufferedInputFile(content, filename=photo.filename or "chek.jpg")
-        await bot_instance.send_photo(chat_id=ADMIN_CHANNEL, photo=input_photo,
-                                      caption=f"💰 Chek\nFoydalanuvchi: {tid}", reply_markup=markup)
-    except Exception as e:
-        logger.error(f"Receipt send error: {e}")
-    finally:
-        await bot_instance.session.close()
     return {"ok": True}
 
 @app.post("/api/session")
