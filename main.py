@@ -241,6 +241,17 @@ async def save_session(telegram_id, session_string):
         )
         await db.commit()
 
+@router.message(F.photo)
+async def photo_handler(message: Message):
+    tid = message.from_user.id
+    photo_id = message.photo[-1].file_id
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("INSERT INTO payments (telegram_id, photo_id) VALUES (?, ?)", (tid, photo_id))
+        await db.commit()
+    
+    await message.answer("✅ To'lov cheki qabul qilindi! Adminlar tekshirgach balansingizga pul qo'shiladi.")
+
 @router.message(F.text)
 async def text_handler(message: Message):
     user_id = message.from_user.id
@@ -775,9 +786,25 @@ async def admin_set_balance(request: Request, x_admin_token: str = Header(defaul
         if get_admin_token(aid) == x_admin_token: break
     else: raise HTTPException(403)
     data = await request.json()
+    amt = data['amount']
+    tid = data['telegram_id']
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE users SET balance=? WHERE telegram_id=?", (data['amount'], data['telegram_id']))
+        await db.execute("UPDATE users SET balance=? WHERE telegram_id=?", (amt, tid))
         await db.commit()
+    
+    # Foydalanuvchiga xabar yuborish
+    bot_instance = Bot(token=BOT_TOKEN)
+    try:
+        await bot_instance.send_message(
+            tid, 
+            f"💰 Admin tomonidan balansingiz tahrirlandi!\nJoriy balans: <b>{amt:,} so'm</b>", 
+            parse_mode="HTML"
+        )
+    except:
+        pass
+    finally:
+        await bot_instance.session.close()
+
     return {"ok": True}
 
 @app.get("/api/admin/orders")
