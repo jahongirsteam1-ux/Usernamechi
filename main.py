@@ -101,6 +101,24 @@ async def init_db():
                 created_at REAL DEFAULT (strftime('%s','now'))
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS search_tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                telegram_id INTEGER,
+                category TEXT,
+                status TEXT DEFAULT 'searching',
+                created_at REAL DEFAULT (strftime('%s','now'))
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS search_results (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                search_id INTEGER,
+                username TEXT,
+                status TEXT DEFAULT 'free',
+                created_at REAL DEFAULT (strftime('%s','now'))
+            )
+        """)
         await db.commit()
         # Sozlamalarni kiritish
         await db.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('payment_card', '8600123456789012')")
@@ -362,107 +380,114 @@ async def cancel_order(call: CallbackQuery):
     asyncio.create_task(run_sniper(call.bot, user_id, order_id, cat, qty))
 
 # ─── SNIPER ───────────────────────────────────
-async def run_sniper(bot, telegram_id: int, order_id: int, category: str, quantity: int):
-    """Fon rejimida username qidirib band qiladi (Telethon sessiyasiz demo)"""
+async def search_sniper(telegram_id: int, search_id: int, category: str):
+    """Fon rejimida faqat usernamesni tekshiradi va bazaga yozadi."""
     try:
-        targets = generate_usernames(category, limit=quantity * 20)
-        found   = []
-
+        targets = generate_usernames(category, limit=200)
+        found_count = 0
+        
         user = await get_user(telegram_id)
         session_string = user["session_string"] if user else None
-
+        
         if not session_string:
-            # Session yo'q — faqat variantlarni ko'rsatamiz
-            sample = targets[:quantity * 2]
-            result_text = (
-                f"ℹ️ <b>Diqqat:</b> Siz hali akkauntingizni ulamadingiz.\n\n"
-                f"<b>{category}</b> uchun mumkin bo'lgan usernamelar:\n"
-                + "\n".join(f"• @{u}" for u in sample[:20])
-                + f"\n\n<i>Ularni band qilish uchun akkauntingizni ulang.</i>"
-            )
-            await bot.send_message(telegram_id, result_text, parse_mode="HTML")
             async with aiosqlite.connect(DB_PATH) as db:
-                await db.execute("UPDATE orders SET status='completed' WHERE id=?", (order_id,))
+                await db.execute("UPDATE search_tasks SET status='completed' WHERE id=?", (search_id,))
                 await db.commit()
             return
-
-        # Telethon bilan qidirish
+            
         from telethon import TelegramClient
         from telethon.sessions import StringSession
         from telethon.errors import FloodWaitError, UsernameOccupiedError
         from telethon.tl.functions.account import CheckUsernameRequest
-        from telethon.tl.functions.channels import CreateChannelRequest, UpdateUsernameRequest
-
+        
         client = TelegramClient(StringSession(session_string), API_ID, API_HASH)
         await client.connect()
-
+        
         for username in targets:
-            if len(found) >= quantity:
+            if found_count >= 50: # max 50 ta ko'rsatish
                 break
             try:
                 is_free = await client(CheckUsernameRequest(username=username))
                 if is_free:
-                    ch = None
-                    try:
-                        ch = await client(CreateChannelRequest(title=username.capitalize(), about="Usernamechi", megagroup=False))
-                        ch_id = ch.chats[0].id
-                        await client(UpdateUsernameRequest(channel=ch_id, username=username))
-                        
-                        found.append(username)
-                        async with aiosqlite.connect(DB_PATH) as db:
-                            await db.execute(
-                                "INSERT INTO registered_usernames (order_id, username) VALUES (?,?)",
-                                (order_id, username)
-                            )
-                            await db.execute(
-                                "UPDATE orders SET registered_count=registered_count+1 WHERE id=?",
-                                (order_id,)
-                            )
-                            await db.commit()
-
-                        await bot.send_message(
-                            telegram_id,
-                            f"✅ @{username} band qilindi! ({len(found)}/{quantity})",
-                            parse_mode="HTML"
-                        )
-                    except Exception as inner_e:
-                        if ch:
-                            from telethon.tl.functions.channels import DeleteChannelRequest
-                            try:
-                                await client(DeleteChannelRequest(channel=ch.chats[0].id))
-                            except:
-                                pass
-                        
-                        # Stop process if they reached max public channels limit
-                        if "ChannelsAdminPublicTooMuchError" in str(type(inner_e)):
-                            await bot.send_message(telegram_id, "❌ <b>Diqqat:</b> Sizda ommaviy link (username) yaratish limiti tugagan! (Max 10 ta, Premiumda 20 ta).\nJarayon to'xtatildi.", parse_mode="HTML")
-                            break
-                        raise inner_e # Re-raise for general error handling
-
-                await asyncio.sleep(1)
+                    async with aiosqlite.connect(DB_PATH) as db:
+                        await db.execute("INSERT INTO search_results (search_id, username) VALUES (?,?)", (search_id, username))
+                        await db.commit()
+                    found_count += 1
+                await asyncio.sleep(1) # FloodWait dan qochish
             except FloodWaitError as e:
                 await asyncio.sleep(e.seconds)
             except UsernameOccupiedError:
                 pass
             except Exception as e:
-                logger.error(f"Sniper xato: {e}")
+                logger.error(f"Search xato: {e}")
                 await asyncio.sleep(2)
-
+                
         await client.disconnect()
+        
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute("UPDATE search_tasks SET status='completed' WHERE id=?", (search_id,))
+            await db.commit()
+            
+    except Exception as e:
+        logger.error(f"Search task xato: {e}")
 
+async def claim_sniper(bot, telegram_id: int, order_id: int, usernames: list):
+    """Foydalanuvchi tanlagan aniq usernamelarni band qiladi."""
+    try:
+        user = await get_user(telegram_id)
+        session_string = user["session_string"]
+        
+        from telethon import TelegramClient
+        from telethon.sessions import StringSession
+        from telethon.errors import FloodWaitError
+        from telethon.tl.functions.channels import CreateChannelRequest, UpdateUsernameRequest, DeleteChannelRequest
+        
+        client = TelegramClient(StringSession(session_string), API_ID, API_HASH)
+        await client.connect()
+        
+        claimed = []
+        for username in usernames:
+            try:
+                ch = None
+                try:
+                    ch = await client(CreateChannelRequest(title=username.capitalize(), about="Usernamechi", megagroup=False))
+                    ch_id = ch.chats[0].id
+                    await client(UpdateUsernameRequest(channel=ch_id, username=username))
+                    
+                    claimed.append(username)
+                    async with aiosqlite.connect(DB_PATH) as db:
+                        await db.execute("INSERT INTO registered_usernames (order_id, username) VALUES (?,?)", (order_id, username))
+                        await db.execute("UPDATE orders SET registered_count=registered_count+1 WHERE id=?", (order_id,))
+                        await db.commit()
+                except Exception as inner_e:
+                    if ch:
+                        try:
+                            await client(DeleteChannelRequest(channel=ch.chats[0].id))
+                        except:
+                            pass
+                    if "ChannelsAdminPublicTooMuchError" in str(type(inner_e)):
+                        await bot.send_message(telegram_id, "❌ <b>Diqqat:</b> Ommaviy link yaratish limiti tugagan! Jarayon to'xtatildi.", parse_mode="HTML")
+                        break
+                await asyncio.sleep(1)
+            except FloodWaitError as e:
+                await asyncio.sleep(e.seconds)
+            except Exception as e:
+                logger.error(f"Claim xato: {e}")
+                
+        await client.disconnect()
+        
         async with aiosqlite.connect(DB_PATH) as db:
             await db.execute("UPDATE orders SET status='completed' WHERE id=?", (order_id,))
             await db.commit()
-
+            
         await bot.send_message(
             telegram_id,
-            f"🎉 <b>Buyurtma yakunlandi!</b>\n\n"
-            f"Jami band qilindi: <b>{len(found)}/{quantity} ta</b>\n"
-            + ("\n".join(f"✅ @{u}" for u in found) if found else "❌ Hech qanday bo'sh username topilmadi."),
+            f"🎉 <b>Buyurtma yakunlandi!</b>\nJami band qilindi: <b>{len(claimed)} ta</b>\n"
+            + ("\n".join(f"✅ @{u}" for u in claimed) if claimed else "❌ Hech qanday nom olinmadi."),
             parse_mode="HTML"
         )
     except Exception as e:
-        logger.error(f"Sniper run error: {e}")
+        logger.error(f"Claim task xato: {e}")
 
 # ─── FASTAPI APP ──────────────────────────────
 app = FastAPI()
@@ -568,34 +593,84 @@ async def api_orders(init_data: str = ""):
                 o['usernames'] = [r[0] for r in await c.fetchall()]
     return orders
 
-@app.post("/api/order")
-async def api_order(request: Request):
+@app.post("/api/search/start")
+async def api_search_start(request: Request):
     data = await request.json()
     user = verify_init_data(data.get('init_data',''))
     if not user:
         raise HTTPException(403)
     tid = user['id']
     cat = data.get('category','').strip()
-    qty = int(data.get('quantity', 1))
-    if not cat or not 1 <= qty <= 10:
-        return {"ok": False, "error": "Noto'g'ri ma'lumot"}
+    
+    if not cat:
+        return {"ok": False, "error": "Kategoriya kiritilmadi"}
+        
     row = await get_user(tid)
     if not row or not row['session_string']:
         return {"ok": False, "error": "Akkaunt ulanmagan"}
+        
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute("INSERT INTO search_tasks (telegram_id, category) VALUES (?, ?)", (tid, cat))
+        search_id = cur.lastrowid
+        await db.commit()
+        
+    asyncio.create_task(search_sniper(tid, search_id, cat))
+    return {"ok": True, "search_id": search_id}
+
+@app.get("/api/search/results")
+async def api_search_results(search_id: int, init_data: str = ""):
+    user = verify_init_data(init_data)
+    if not user: raise HTTPException(403)
     
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        
+        # Holatni tekshiramiz
+        async with db.execute("SELECT status FROM search_tasks WHERE id=? AND telegram_id=?", (search_id, user['id'])) as c:
+            task = await c.fetchone()
+            if not task:
+                return {"ok": False, "error": "Topilmadi"}
+                
+        async with db.execute("SELECT id, username, status FROM search_results WHERE search_id=? ORDER BY id ASC", (search_id,)) as c:
+            results = [dict(r) for r in await c.fetchall()]
+            
+        return {"ok": True, "status": task['status'], "results": results}
+
+@app.post("/api/buy_selected")
+async def api_buy_selected(request: Request):
+    data = await request.json()
+    user = verify_init_data(data.get('init_data',''))
+    if not user: raise HTTPException(403)
+    tid = user['id']
+    
+    usernames = data.get('usernames', [])
+    search_id = data.get('search_id')
+    qty = len(usernames)
+    
+    if not usernames or qty > 10:
+        return {"ok": False, "error": "1 dan 10 tagacha tanlang"}
+        
+    row = await get_user(tid)
     price_per_item = int(await get_setting("username_price", 5000))
     price = qty * price_per_item
     
     if (row['balance'] or 0) < price:
-        return {"ok": False, "error": "Balans yetarli emas"}
+        return {"ok": False, "error": f"Balans yetarli emas (Kerak: {price:,} so'm)"}
+        
+    # Pulni yechish va order yaratish
     await deduct_balance(tid, price)
     async with aiosqlite.connect(DB_PATH) as db:
-        cur = await db.execute("INSERT INTO orders (telegram_id,category,quantity,price,status) VALUES (?,?,?,?,'processing')",
-                               (tid, cat, qty, price))
+        cur = await db.execute("INSERT INTO orders (telegram_id, category, quantity, price, status) VALUES (?,?,?,?,'processing')",
+                               (tid, f"Tanlangan ({qty})", qty, price))
         order_id = cur.lastrowid
+        
+        # Natijalarni claimed holatga o'tkazish
+        for u in usernames:
+            await db.execute("UPDATE search_results SET status='claimed' WHERE search_id=? AND username=?", (search_id, u))
         await db.commit()
+        
     bot_instance = Bot(token=BOT_TOKEN)
-    asyncio.create_task(run_sniper(bot_instance, tid, order_id, cat, qty))
+    asyncio.create_task(claim_sniper(bot_instance, tid, order_id, usernames))
     return {"ok": True}
 
 from telethon import TelegramClient
