@@ -507,17 +507,89 @@ async def api_order(request: Request):
     asyncio.create_task(run_sniper(bot_instance, tid, order_id, cat, qty))
     return {"ok": True}
 
-@app.post("/api/session")
-async def api_session(request: Request):
+from telethon import TelegramClient
+from telethon.sessions import StringSession
+from telethon.errors import SessionPasswordNeededError
+
+auth_clients = {}
+
+@app.post("/api/auth/send_code")
+async def auth_send_code(request: Request):
     data = await request.json()
     user = verify_init_data(data.get('init_data',''))
-    if not user:
-        raise HTTPException(403)
-    session = data.get('session_string','').strip()
-    if len(session) < 50:
-        return {"ok": False, "error": "Session string juda qisqa"}
-    await save_session(user['id'], session)
-    return {"ok": True}
+    if not user: raise HTTPException(403)
+    tid = user['id']
+    phone = data.get('phone', '').strip().replace('+', '')
+    if not phone: return {"ok": False, "error": "Telefon kiritilmadi"}
+    
+    if tid in auth_clients:
+        try: await auth_clients[tid]['client'].disconnect()
+        except: pass
+        del auth_clients[tid]
+        
+    client = TelegramClient(StringSession(), API_ID, API_HASH)
+    await client.connect()
+    try:
+        sent = await client.send_code_request(phone)
+        auth_clients[tid] = {
+            "client": client,
+            "phone": phone,
+            "phone_code_hash": sent.phone_code_hash
+        }
+        return {"ok": True}
+    except Exception as e:
+        await client.disconnect()
+        return {"ok": False, "error": str(e)}
+
+@app.post("/api/auth/login")
+async def auth_login(request: Request):
+    data = await request.json()
+    user = verify_init_data(data.get('init_data',''))
+    if not user: raise HTTPException(403)
+    tid = user['id']
+    code = data.get('code', '').strip()
+    
+    if tid not in auth_clients:
+        return {"ok": False, "error": "Avval telefon kiritilmagan yoki seans muddati tugagan"}
+        
+    state = auth_clients[tid]
+    client = state['client']
+    try:
+        await client.sign_in(phone=state['phone'], code=code, phone_code_hash=state['phone_code_hash'])
+    except SessionPasswordNeededError:
+        return {"ok": True, "need_password": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+        
+    session_string = client.session.save()
+    await client.disconnect()
+    del auth_clients[tid]
+    await save_session(tid, session_string)
+    return {"ok": True, "success": True}
+
+@app.post("/api/auth/password")
+async def auth_password(request: Request):
+    data = await request.json()
+    user = verify_init_data(data.get('init_data',''))
+    if not user: raise HTTPException(403)
+    tid = user['id']
+    password = data.get('password', '')
+    
+    if tid not in auth_clients:
+        return {"ok": False, "error": "Seans muddati tugagan"}
+        
+    state = auth_clients[tid]
+    client = state['client']
+    try:
+        await client.sign_in(password=password)
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+        
+    session_string = client.session.save()
+    await client.disconnect()
+    del auth_clients[tid]
+    await save_session(tid, session_string)
+    return {"ok": True, "success": True}
 
 @app.post("/api/session/disconnect")
 async def api_disconnect(request: Request):

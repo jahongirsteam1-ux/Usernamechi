@@ -387,21 +387,37 @@
   </div>
 
   <div class="card" id="session-form-wrap">
-    <div class="section-title">Session String <span>ulash</span></div>
-    <div style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.2);border-radius:12px;padding:14px;margin-bottom:16px;font-size:13px;line-height:1.6;">
-      <b>Qanday olish mumkin:</b><br>
-      1️⃣ <b>@StringSessionBot</b> ga kiring<br>
-      2️⃣ /generate yuboring<br>
-      3️⃣ API ID, API HASH, Telefon va SMS kodni kiriting<br>
-      4️⃣ Berilgan uzun stringni quyiga joylashtiring
+    <div class="section-title">Telegramga <span>ulanish</span></div>
+    
+    <!-- BOSQICH 1: Telefon raqam -->
+    <div id="auth-step-phone">
+      <div style="color:var(--muted);font-size:13px;margin-bottom:12px;">Akkauntingizni ulash uchun Telegram telefon raqamingizni kiriting.</div>
+      <div class="form-group">
+        <label>TELEFON RAQAM</label>
+        <input type="text" id="auth-phone" placeholder="+998 90 123 45 67">
+      </div>
+      <button class="btn btn-primary" onclick="sendAuthCode()" id="btn-send-code">Kod yuborish</button>
     </div>
-    <div class="form-group">
-      <label>SESSION STRING</label>
-      <textarea id="session-input" placeholder="BQABx7...uzun matn..."></textarea>
+
+    <!-- BOSQICH 2: Kod kiritish -->
+    <div id="auth-step-code" style="display:none;">
+      <div style="color:var(--muted);font-size:13px;margin-bottom:12px;">Telegramdan kelgan 5 xonali kodni kiriting.</div>
+      <div class="form-group">
+        <label>TASDIQLASH KODI</label>
+        <input type="number" id="auth-code" placeholder="12345">
+      </div>
+      <button class="btn btn-primary" onclick="verifyAuthCode()" id="btn-verify-code">Tasdiqlash</button>
     </div>
-    <button class="btn btn-primary" onclick="saveSession()">
-      🔗 Akkauntni ulash
-    </button>
+
+    <!-- BOSQICH 3: 2FA Parol -->
+    <div id="auth-step-password" style="display:none;">
+      <div style="color:var(--muted);font-size:13px;margin-bottom:12px;">Akkauntingizda 2-bosqichli parol o'rnatilgan. Parolni kiriting.</div>
+      <div class="form-group">
+        <label>PAROL (2FA)</label>
+        <input type="password" id="auth-password" placeholder="Parol">
+      </div>
+      <button class="btn btn-primary" onclick="verifyAuthPassword()" id="btn-verify-pass">Kirish</button>
+    </div>
   </div>
 
   <div id="disconnect-wrap" style="display:none;margin-top:8px;">
@@ -597,21 +613,68 @@ function copyCard() {
   showToast('📋 Nusxalandi!','success');
 }
 
-// ── SESSION ───────────────────────────────────
-async function saveSession() {
-  const session = document.getElementById('session-input').value.trim();
-  if (session.length < 50) { showToast('Session string juda qisqa!','error'); return; }
+// ── TELEGRAM AUTH ─────────────────────────────
+async function sendAuthCode() {
+  const phone = document.getElementById('auth-phone').value.trim();
+  if (!phone) { showToast('Telefon kiritilmadi', 'error'); return; }
+  const btn = document.getElementById('btn-send-code');
+  btn.innerText = 'Yuborilmoqda...'; btn.disabled = true;
   try {
-    const res = await fetch(`${API}/api/session`, {
+    const res = await fetch(`${API}/api/auth/send_code`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({init_data: tg.initData, session_string: session})
+      body: JSON.stringify({init_data: tg.initData, phone: phone})
     });
     const d = await res.json();
     if (d.ok) {
-      showToast('✅ Akkaunt ulandi!','success');
+      document.getElementById('auth-step-phone').style.display = 'none';
+      document.getElementById('auth-step-code').style.display = 'block';
+      showToast('Kod yuborildi!', 'success');
+    } else { showToast(d.error||'Xato', 'error'); }
+  } catch(e) { showToast('Xato yuz berdi', 'error'); }
+  btn.innerText = 'Kod yuborish'; btn.disabled = false;
+}
+
+async function verifyAuthCode() {
+  const code = document.getElementById('auth-code').value.trim();
+  if (!code) { showToast('Kodni kiriting', 'error'); return; }
+  const btn = document.getElementById('btn-verify-code');
+  btn.innerText = 'Tekshirilmoqda...'; btn.disabled = true;
+  try {
+    const res = await fetch(`${API}/api/auth/login`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({init_data: tg.initData, code: code})
+    });
+    const d = await res.json();
+    if (d.ok) {
+      if (d.need_password) {
+        document.getElementById('auth-step-code').style.display = 'none';
+        document.getElementById('auth-step-password').style.display = 'block';
+      } else {
+        showToast('✅ Akkaunt ulandi!', 'success');
+        await loadUserData();
+      }
+    } else { showToast(d.error||'Noto\'g\'ri kod', 'error'); }
+  } catch(e) { showToast('Xato yuz berdi', 'error'); }
+  btn.innerText = 'Tasdiqlash'; btn.disabled = false;
+}
+
+async function verifyAuthPassword() {
+  const pwd = document.getElementById('auth-password').value.trim();
+  if (!pwd) { showToast('Parolni kiriting', 'error'); return; }
+  const btn = document.getElementById('btn-verify-pass');
+  btn.innerText = 'Tekshirilmoqda...'; btn.disabled = true;
+  try {
+    const res = await fetch(`${API}/api/auth/password`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({init_data: tg.initData, password: pwd})
+    });
+    const d = await res.json();
+    if (d.ok) {
+      showToast('✅ Akkaunt ulandi!', 'success');
       await loadUserData();
-    } else { showToast(d.error||'Xato','error'); }
-  } catch(e) { showToast('Xato yuz berdi','error'); }
+    } else { showToast(d.error||'Noto\'g\'ri parol', 'error'); }
+  } catch(e) { showToast('Xato yuz berdi', 'error'); }
+  btn.innerText = 'Kirish'; btn.disabled = false;
 }
 
 async function disconnectAccount() {
@@ -626,6 +689,9 @@ async function disconnectAccount() {
     document.getElementById('status-dot').className = 'status-dot disconnected';
     document.getElementById('account-name').textContent = 'Akkaunt ulanmagan';
     document.getElementById('session-form-wrap').style.display = 'block';
+    document.getElementById('auth-step-phone').style.display = 'block';
+    document.getElementById('auth-step-code').style.display = 'none';
+    document.getElementById('auth-step-password').style.display = 'none';
     document.getElementById('disconnect-wrap').style.display = 'none';
   } catch(e) {}
 }
