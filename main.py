@@ -174,6 +174,11 @@ def generate_usernames(base_word: str, limit: int = 200) -> list:
     for b in bases:
         results.add(b)
         for suf in suffixes:
+            # Familiya qo'shimchalari takrorlanishini oldini olish (masalan: abdullayevyeva)
+            if b.endswith(("ov", "ova", "yev", "yeva", "boy", "xon", "bek", "jon")) and suf in ["ov", "ova", "yev", "yeva", "boy", "xon", "bek", "jon"]:
+                continue
+            if b.endswith(suf):
+                continue
             results.add(f"{b}{suf}")
         for pref in prefixes:
             results.add(f"{pref}{b}")
