@@ -267,6 +267,9 @@ async def auto_payment_handler(message: Message):
         numbers = [int(n) for n in clean_text.split() if n.strip()]
         
         async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute("UPDATE topups SET status='expired' WHERE status='pending' AND created_at <= (strftime('%s','now') - 180)")
+            await db.commit()
+            
             db.row_factory = aiosqlite.Row
             async with db.execute("SELECT id, telegram_id, expected_amount FROM topups WHERE status='pending'") as c:
                 pending_topups = await c.fetchall()
@@ -685,6 +688,10 @@ async def api_topup_request(request: Request):
     
     # Generate unique amount (add 1 to 99 tiyin)
     async with aiosqlite.connect(DB_PATH) as db:
+        # Eski to'lovlarni avtomatik muddati o'tgan deb belgilaymiz (180 soniya = 3 daqiqa)
+        await db.execute("UPDATE topups SET status='expired' WHERE status='pending' AND created_at <= (strftime('%s','now') - 180)")
+        await db.commit()
+        
         for _ in range(100):
             unique_amount = amount + random.randint(1, 99)
             async with db.execute("SELECT id FROM topups WHERE expected_amount=? AND status='pending'", (unique_amount,)) as c:
@@ -692,7 +699,7 @@ async def api_topup_request(request: Request):
                     # Unikal summa topildi
                     await db.execute("INSERT INTO topups (telegram_id, expected_amount) VALUES (?, ?)", (tid, unique_amount))
                     await db.commit()
-                    return {"ok": True, "amount": unique_amount}
+                    return {"ok": True, "amount": unique_amount, "expires_in": 180}
     
     return {"ok": False, "error": "Bandlik yuqori, keyinroq urining"}
 

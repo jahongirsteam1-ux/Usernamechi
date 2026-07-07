@@ -385,7 +385,11 @@
     </div>
 
     <div style="margin-bottom:8px;color:var(--muted);font-size:12px;">O'tkaziladigan summa:</div>
-    <div style="font-size:32px;font-weight:800;color:var(--success);margin-bottom:20px;" id="pay-exact-amount">0 so'm</div>
+    <div style="font-size:32px;font-weight:800;color:var(--success);margin-bottom:8px;" id="pay-exact-amount">0 so'm</div>
+
+    <div style="font-size:18px;font-weight:700;color:var(--warning);margin-bottom:20px;">
+      ⏳ To'lov uchun vaqt: <span id="topup-timer">03:00</span>
+    </div>
 
     <div style="background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:16px;margin-bottom:16px;">
       <div style="color:var(--muted);font-size:12px;margin-bottom:6px;">To'lov kartasi:</div>
@@ -819,6 +823,8 @@ async function buySelected() {
 }
 
 // ── TOPUP ───────────────────────────────────
+let topupTimerInterval = null;
+
 async function requestTopup() {
   const amtInput = document.getElementById('topup-amount').value;
   const amt = parseInt(amtInput);
@@ -834,11 +840,36 @@ async function requestTopup() {
       document.getElementById('topup-form-wrap').style.display = 'none';
       document.getElementById('topup-pay-wrap').style.display = 'block';
       document.getElementById('pay-exact-amount').textContent = d.amount.toLocaleString() + ' so\'m';
+      
+      // Timer mantiqi
+      let timeLeft = d.expires_in || 180;
+      const timerEl = document.getElementById('topup-timer');
+      if(topupTimerInterval) clearInterval(topupTimerInterval);
+      
+      const updateTimerDisplay = () => {
+        const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+        const s = (timeLeft % 60).toString().padStart(2, '0');
+        timerEl.textContent = `${m}:${s}`;
+      };
+      updateTimerDisplay();
+      
+      topupTimerInterval = setInterval(() => {
+        timeLeft--;
+        if(timeLeft <= 0) {
+          clearInterval(topupTimerInterval);
+          showToast('Vaqt tugadi. Boshqatdan summa yozing!', 'error');
+          cancelTopup();
+        } else {
+          updateTimerDisplay();
+        }
+      }, 1000);
+      
     } else { showToast(d.error||'Xato','error'); }
   } catch(e) { showToast('Tarmoq xatosi','error'); }
 }
 
 function cancelTopup() {
+  if(topupTimerInterval) clearInterval(topupTimerInterval);
   document.getElementById('topup-form-wrap').style.display = 'block';
   document.getElementById('topup-pay-wrap').style.display = 'none';
   document.getElementById('topup-amount').value = '';
