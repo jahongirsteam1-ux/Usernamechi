@@ -118,7 +118,7 @@ def main_menu():
     return ReplyKeyboardMarkup(keyboard=[
         [KeyboardButton(text="💰 Balans"), KeyboardButton(text="💳 To'ldirish")],
         [KeyboardButton(text="🛒 Username sotib olish")],
-        [KeyboardButton(text="📋 Buyurtmalarim")]
+        [KeyboardButton(text="🔗 Akkaunt ulash"), KeyboardButton(text="📋 Buyurtmalarim")]
     ], resize_keyboard=True)
 
 # ─── ROUTER VA HANDLERLAR ─────────────────────
@@ -162,8 +162,55 @@ async def topup_cmd(message: Message):
         parse_mode="HTML"
     )
 
+@router.message(F.text == "🔗 Akkaunt ulash")
+async def link_account_cmd(message: Message):
+    user = await get_user(message.from_user.id)
+    if user and user["session_string"]:
+        markup = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔄 Yangi session bilan almashtirish", callback_data="replace_session")],
+            [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_session")]
+        ])
+        await message.answer(
+            "✅ Akkauntingiz allaqachon ulangan!\n\n"
+            "Yangi session bilan almashtirishni xohlaysizmi?",
+            reply_markup=markup
+        )
+    else:
+        user_states[message.from_user.id] = {"step": "wait_session"}
+        await message.answer(
+            "🔗 <b>Akkaunt ulash</b>\n\n"
+            "Username band qilish uchun Telegram akkauntingizni ulashingiz kerak.\n\n"
+            "<b>Session String qanday olish mumkin:</b>\n"
+            "1️⃣ @StringSessionBot botiga kiring\n"
+            "2️⃣ /generate buyrug'ini yuboring\n"
+            "3️⃣ API ID va API HASH kiriting (my.telegram.org dan)\n"
+            "4️⃣ Telefon raqamingizni kiriting\n"
+            "5️⃣ SMS kodni kiriting\n"
+            "6️⃣ Bot sizga uzun session string beradi\n\n"
+            "✉️ <b>Endi o'sha session stringni shu yerga yuboring:</b>",
+            parse_mode="HTML"
+        )
+
+@router.callback_query(F.data == "replace_session")
+async def replace_session_cb(call: CallbackQuery):
+    user_states[call.from_user.id] = {"step": "wait_session"}
+    await call.message.edit_text(
+        "✉️ Yangi session stringni yuboring:"
+    )
+
+@router.callback_query(F.data == "cancel_session")
+async def cancel_session_cb(call: CallbackQuery):
+    await call.message.edit_text("❌ Bekor qilindi.")
+
 @router.message(F.text == "🛒 Username sotib olish")
 async def buy_username_cmd(message: Message):
+    user = await get_user(message.from_user.id)
+    if not user or not user["session_string"]:
+        await message.answer(
+            "⚠️ Avval akkauntingizni ulang!\n\n"
+            "'🔗 Akkaunt ulash' tugmasini bosing."
+        )
+        return
     user_states[message.from_user.id] = {"step": "wait_category"}
     await message.answer(
         "🎯 <b>Username kategoriyasini kiriting</b>\n\n"
@@ -238,10 +285,35 @@ async def approve_payment(call: CallbackQuery):
     await call.message.edit_caption(caption=f"✅ {amount:,} so'm tasdiqlandi va balansi to'ldirildi.")
     await call.bot.send_message(user_id, f"🎉 Balansingiz <b>{amount:,} so'm</b>ga to'ldirildi!", parse_mode="HTML")
 
+async def save_session(telegram_id, session_string):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE users SET session_string=? WHERE telegram_id=?",
+            (session_string, telegram_id)
+        )
+        await db.commit()
+
 @router.message(F.text)
 async def text_handler(message: Message):
     user_id = message.from_user.id
     state   = user_states.get(user_id, {})
+
+    if state.get("step") == "wait_session":
+        session = message.text.strip()
+        # Session string juda qisqa bo'lsa qabul qilmaymiz
+        if len(session) < 50:
+            await message.answer("❌ Bu session string emas. Iltimos, to'g'ri session string yuboring.")
+            return
+        # Session ni bazaga saqlaymiz
+        await save_session(user_id, session)
+        user_states.pop(user_id, None)
+        await message.answer(
+            "✅ <b>Akkaunt muvaffaqiyatli ulandi!</b>\n\n"
+            "Endi '🛒 Username sotib olish' tugmasi orqali buyurtma bera olasiz.",
+            reply_markup=main_menu(),
+            parse_mode="HTML"
+        )
+        return
 
     if state.get("step") == "wait_category":
         user_states[user_id] = {"step": "wait_quantity", "category": message.text.strip()}
