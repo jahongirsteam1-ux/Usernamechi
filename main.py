@@ -166,9 +166,9 @@ def generate_usernames(base_word: str, limit: int = 200) -> list:
 
 # ─── ASOSIY MENYU ─────────────────────────────
 def main_menu():
-    return ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text="📱 Dasturni ochish", web_app=WebAppInfo(url=f"{WEB_URL}/app"))]
-    ], resize_keyboard=True)
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📱 Dasturni ochish", web_app=WebAppInfo(url=f"{WEB_URL}/app"))]
+    ])
 
 # ─── ROUTER VA HANDLERLAR ─────────────────────
 router = Router()
@@ -179,14 +179,16 @@ user_states = {}
 @router.message(CommandStart())
 async def start_cmd(message: Message):
     await create_user(message.from_user.id)
-    user = await get_user(message.from_user.id)
-    price = int(await get_setting("username_price", 5000))
+    
+    # Eski pastki klaviaturani tozalash
+    tmp_msg = await message.answer("🔄", reply_markup=ReplyKeyboardRemove())
+    await tmp_msg.delete()
+    
     await message.answer(
         f"👋 Xush kelibsiz, <b>{message.from_user.first_name}</b>!\n\n"
         f"Bu bot orqali <b>qisqa va ma'noli</b> Telegram usernamelarni "
         f"avtomatik band qilib olishingiz mumkin.\n\n"
-        f"💰 Balansingiz: <b>{user['balance'] if user else 0:,} so'm</b>\n"
-        f"💡 1 ta username = <b>{price:,} so'm</b>",
+        f"👇 Quyidagi tugma orqali dasturga kiring:",
         reply_markup=main_menu(),
         parse_mode="HTML"
     )
