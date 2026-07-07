@@ -135,6 +135,13 @@ async def init_db():
         await db.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('payment_channel_id', '0')")
         await db.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('username_price', '5000')")
         await db.commit()
+
+        # Migration: mavjud jadvallarni yangi ustunlar bilan yangilash
+        try:
+            await db.execute("ALTER TABLE search_tasks ADD COLUMN paid_qty INTEGER DEFAULT 1")
+            await db.commit()
+        except Exception:
+            pass  # Ustun allaqachon mavjud
     logger.info("✅ Baza tayyor")
 
 async def get_setting(key, default=None):
