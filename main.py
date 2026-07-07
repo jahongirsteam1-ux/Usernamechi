@@ -798,6 +798,35 @@ async def api_search_start(request: Request):
     asyncio.create_task(search_sniper(tid, search_id, cat))
     return {"ok": True, "search_id": search_id, "paid_qty": qty, "charged": total_price}
 
+@app.post("/api/search/refresh")
+async def api_search_refresh(request: Request):
+    """Balansdan pul yechmasdan yangi qidiruv boshlaydi (foydalanuvchi allaqachon to'lagan)."""
+    data = await request.json()
+    user = verify_init_data(data.get('init_data',''))
+    if not user: raise HTTPException(403)
+    tid = user['id']
+    cat = data.get('category','').strip()
+    paid_qty = int(data.get('paid_qty', 1))
+    paid_qty = max(1, min(10, paid_qty))
+
+    if not cat:
+        return {"ok": False, "error": "Kategoriya kiritilmadi"}
+
+    row = await get_user(tid)
+    if not row or not row['session_string']:
+        return {"ok": False, "error": "Akkaunt ulanmagan"}
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute(
+            "INSERT INTO search_tasks (telegram_id, category, paid_qty) VALUES (?, ?, ?)",
+            (tid, cat, paid_qty)
+        )
+        search_id = cur.lastrowid
+        await db.commit()
+
+    asyncio.create_task(search_sniper(tid, search_id, cat))
+    return {"ok": True, "search_id": search_id}
+
 @app.get("/api/search/results")
 async def api_search_results(search_id: int, init_data: str = ""):
     user = verify_init_data(init_data)

@@ -321,6 +321,10 @@
     <button class="btn btn-primary" id="buy-btn" onclick="buySelected()" disabled>
       ✅ Tanlanganlarni band qilish
     </button>
+
+    <button class="btn btn-outline" id="next-search-btn" onclick="nextSearch()" style="margin-top:10px;width:100%;">
+      ➡️ Keyingi (yangi variantlar ko'rsatish)
+    </button>
   </div>
 
   <!-- SO'NGGI BUYURTMALAR JADVALI -->
@@ -767,22 +771,58 @@ function renderSearchResults(results) {
   if(results.length === 0) {
     html = `<div style="padding:16px; text-align:center; color:var(--muted);">Hozircha natija yo'q...</div>`;
   } else {
-    results.forEach(r => {
+    results.forEach((r, idx) => {
+      const num = idx + 1;
       const isChecked = selectedUsernames.has(r.username) ? 'checked' : '';
       const isClaimed = r.status === 'claimed';
-      // Full seleced olganda boshqalarni disable qilish
       const isMaxReached = selectedUsernames.size >= paidQty && !selectedUsernames.has(r.username);
       const disabled = isClaimed || isMaxReached;
       html += `
-        <label style="display:flex; align-items:center; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.05); cursor:${disabled?'not-allowed':'pointer'}; opacity:${disabled?'0.4':'1'}">
-          <input type="checkbox" value="${r.username}" onchange="toggleSelection(this)" ${isChecked} ${disabled?'disabled':''} style="margin-right:12px; width:18px; height:18px; accent-color:var(--primary);">
+        <label style="display:flex; align-items:center; padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.05); cursor:${disabled?'not-allowed':'pointer'}; opacity:${disabled?'0.4':'1'}">
+          <span style="min-width:26px; font-size:12px; color:var(--muted); font-weight:600; margin-right:8px;">${num}.</span>
+          <input type="checkbox" value="${r.username}" onchange="toggleSelection(this)" ${isChecked} ${disabled?'disabled':''} style="margin-right:10px; width:18px; height:18px; accent-color:var(--primary); flex-shrink:0;">
           <span style="font-weight:600; font-size:14px;">@${r.username}</span>
-          ${isClaimed ? '<span style="margin-left:auto; font-size:12px; color:var(--success);">✅ Band qilindi</span>' : ''}
+          ${isClaimed ? '<span style="margin-left:auto; font-size:12px; color:var(--success);">✅ Band</span>' : ''}
         </label>
       `;
     });
   }
   list.innerHTML = html;
+}
+
+async function nextSearch() {
+  if (!currentSearchId) return;
+  const btn = document.getElementById('next-search-btn');
+  btn.innerHTML = '<div class="spinner" style="display:inline-block;width:16px;height:16px;"></div> Qidirilmoqda...';
+  btn.disabled = true;
+
+  // Joriy qidiruvning kategoriyasini olamiz
+  const cat = document.getElementById('buy-category').value.trim();
+  if (!cat) { btn.innerHTML = '➡️ Keyingi'; btn.disabled = false; return; }
+
+  try {
+    // Yangi search_task yaratamiz, lekin pul yechilmaydi (refresh)
+    const res = await fetch(`${API}/api/search/refresh`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({init_data: tg.initData, category: cat, paid_qty: paidQty})
+    });
+    const d = await res.json();
+    if (d.ok) {
+      currentSearchId = d.search_id;
+      document.getElementById('results-list').innerHTML = '';
+      document.getElementById('search-status-text').textContent = '⏳ Yangi variantlar qidirilmoqda...';
+      selectedUsernames.clear();
+      updateSelectionUI();
+
+      if(searchPollInterval) clearInterval(searchPollInterval);
+      searchPollInterval = setInterval(pollSearchResults, 2000);
+    } else {
+      showToast(d.error || 'Xato', 'error');
+    }
+  } catch(e) { showToast('Tarmoq xatosi', 'error'); }
+
+  btn.innerHTML = '➡️ Keyingi (yangi variantlar ko\'rsatish)';
+  btn.disabled = false;
 }
 
 function toggleSelection(checkbox) {
