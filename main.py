@@ -183,7 +183,7 @@ async def start_cmd(message: Message):
     user = await get_user(message.from_user.id)
     await message.answer(
         f"👋 Xush kelibsiz, <b>{message.from_user.first_name}</b>!\n\n"
-        f"Bu bot orqali <b>qisqa va ma'noli</b> Telegram usernamalarini "
+        f"Bu bot orqali <b>qisqa va ma'noli</b> Telegram usernamelarni "
         f"avtomatik band qilib olishingiz mumkin.\n\n"
         f"💰 Balansingiz: <b>{user['balance'] if user else 0:,} so'm</b>\n"
         f"💡 1 ta username = <b>{USERNAME_PRICE:,} so'm</b>",
