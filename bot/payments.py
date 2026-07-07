@@ -9,9 +9,7 @@ router = Router()
 @router.message(F.photo)
 async def handle_payment_receipt(message: Message):
     # Agar foydalanuvchi rasm tashlasa (chek), adminga yuboramiz
-    caption = f"💰 Yangi to'lov cheki!
-Foydalanuvchi: {message.from_user.id}
-Summani tasdiqlang:"
+    caption = f"💰 Yangi to'lov cheki!\nFoydalanuvchi: {message.from_user.id}\nSummani tasdiqlang:"
     
     markup = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="✅ 50,000 so'm", callback_data=f"approve_{message.from_user.id}_50000")],
