@@ -325,6 +325,34 @@
   </div>
 </div>
 
+<!-- MONITORING PAGE -->
+<div class="page" id="page-monitor">
+  <div class="page-header">🎯 <span>Nishon olish</span> (Monitoring)</div>
+
+  <div class="card">
+    <div style="font-size:13px; color:var(--muted); margin-bottom:16px;">
+      Band qilingan usernameni kuzatib turamiz va u bo'shagan soniyasida siz uchun ilib olamiz! 
+      <br><i>(Buning uchun balansingizda kamida <b>10,000 so'm</b> bo'lishi kerak. Bu xizmat haqi hisoblanadi)</i>
+    </div>
+
+    <div class="form-group">
+      <label>USERNAME (@ belgisisiz)</label>
+      <input type="text" id="monitor-username" placeholder="super_biznes">
+    </div>
+
+    <button class="btn btn-primary" onclick="startMonitor()">
+      🎯 Kuzatuvni boshlash
+    </button>
+  </div>
+
+  <div class="card" style="padding:0;overflow:hidden; margin-top:20px;">
+    <div style="padding:16px 20px 12px;font-size:15px;font-weight:700;">Aktiv nishonlar</div>
+    <div id="monitor-list">
+      <div style="text-align:center;padding:24px;color:var(--muted);font-size:13px;">📭 Hozircha nishonlar yo'q</div>
+    </div>
+  </div>
+</div>
+
 <!-- BALANCE PAGE -->
 <div class="page" id="page-balance">
   <div class="page-header">💳 <span>Balans</span></div>
@@ -457,6 +485,10 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
     Balans
   </button>
+  <button id="nav-monitor" onclick="goPage('monitor')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+    Nishon
+  </button>
   <button id="nav-orders" onclick="goPage('orders')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
     Buyurtmalar
@@ -584,7 +616,60 @@ function goPage(name) {
   const navBtn = document.getElementById('nav-'+name);
   if (navBtn) navBtn.classList.add('active');
   if(name==='orders') loadOrders();
+  if(name==='monitor') loadMonitors();
   if(name==='balance'||name==='home') { loadUserData(); loadOrders(); }
+}
+
+// ── MONITORING LOGIC ──────────────────────────
+async function startMonitor() {
+  const username = document.getElementById('monitor-username').value.trim();
+  if (!username) { showToast('Username kiriting!','error'); return; }
+  if (!userData.session_string) { showToast('Avval akkauntni ulang!','error'); goPage('account'); return; }
+  
+  if ((userData.balance||0) < 10000) {
+    showToast('Balans yetarli emas (10,000 UZS)','error');
+    return;
+  }
+  
+  try {
+    const res = await fetch(`${API}/api/monitor/start`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({init_data: tg.initData, username: username})
+    });
+    const d = await res.json();
+    if (d.ok) {
+      showToast('✅ Kuzatuv boshlandi!','success');
+      document.getElementById('monitor-username').value = '';
+      await loadUserData();
+      await loadMonitors();
+    } else { showToast(d.error||'Xato yuz berdi','error'); }
+  } catch(e) { showToast('Tarmoq xatosi','error'); }
+}
+
+async function loadMonitors() {
+  try {
+    const res = await fetch(`${API}/api/monitor/list?init_data=${encodeURIComponent(tg.initData)}`);
+    const d = await res.json();
+    if(!d.ok) return;
+    
+    const el = document.getElementById('monitor-list');
+    if (!d.tasks || !d.tasks.length) {
+      el.innerHTML = `<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px;">📭 Hozircha nishonlar yo'q</div>`;
+    } else {
+      const stMap = {
+        'monitoring': '<span style="color:var(--warning);">🔍 Kuzatilmoqda</span>',
+        'claimed': '<span style="color:var(--success);">✅ Olingan!</span>',
+        'failed_limit': '<span style="color:var(--danger);">❌ Limit tugagan</span>'
+      };
+      
+      el.innerHTML = d.tasks.map(t => `
+        <div style="padding:12px 20px; border-bottom:1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items:center;">
+          <div style="font-weight:600;">@${t.username}</div>
+          <div style="font-size:12px;">${stMap[t.status] || t.status}</div>
+        </div>
+      `).join('');
+    }
+  } catch(e) {}
 }
 
 // ── INTERACTIVE SEARCH & BUY ──────────────────

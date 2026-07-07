@@ -119,6 +119,15 @@ async def init_db():
                 created_at REAL DEFAULT (strftime('%s','now'))
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS monitoring_tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                telegram_id INTEGER,
+                username TEXT,
+                status TEXT DEFAULT 'monitoring',
+                created_at REAL DEFAULT (strftime('%s','now'))
+            )
+        """)
         await db.commit()
         # Sozlamalarni kiritish
         await db.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('payment_card', '8600123456789012')")
@@ -238,6 +247,53 @@ router = Router()
 
 # Foydalanuvchi holatlarini saqlash (oddiy dict, botni restart qilsa tozalanadi)
 user_states = {}
+
+import re
+
+@router.channel_post()
+async def auto_payment_handler(message: Message):
+    try:
+        channel_id = str(message.chat.id)
+        target_channel_id = str(await get_setting("payment_channel_id", "0"))
+        
+        if target_channel_id != "0" and channel_id != target_channel_id:
+            return
+            
+        text = message.text or message.caption or ""
+        if not text:
+            return
+            
+        clean_text = re.sub(r'[^0-9]', ' ', text)
+        numbers = [int(n) for n in clean_text.split() if n.strip()]
+        
+        async with aiosqlite.connect(DB_PATH) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("SELECT id, telegram_id, expected_amount FROM topups WHERE status='pending'") as c:
+                pending_topups = await c.fetchall()
+                
+            for topup in pending_topups:
+                amt = int(topup['expected_amount'])
+                if amt in numbers:
+                    await db.execute("UPDATE topups SET status='completed' WHERE id=?", (topup['id'],))
+                    await db.execute("UPDATE users SET balance=balance+? WHERE telegram_id=?", (amt, topup['telegram_id']))
+                    await db.commit()
+                    
+                    try:
+                        await message.bot.send_message(
+                            topup['telegram_id'], 
+                            f"✅ <b>To'lov avtomatik qabul qilindi!</b>\n\nBalansingizga <b>{amt:,} so'm</b> qo'shildi.",
+                            parse_mode="HTML"
+                        )
+                    except:
+                        pass
+                    
+                    try:
+                        await message.reply(f"✅ Tasdiqlandi (Topup ID: {topup['id']})")
+                    except:
+                        pass
+                    break
+    except Exception as e:
+        logger.error(f"Auto-payment error: {e}")
 
 @router.message(CommandStart())
 async def start_cmd(message: Message):
@@ -489,6 +545,68 @@ async def claim_sniper(bot, telegram_id: int, order_id: int, usernames: list):
     except Exception as e:
         logger.error(f"Claim task xato: {e}")
 
+async def monitoring_loop(bot):
+    """Orqa fonda barcha monitoring_tasks larni aylanib chiqadi."""
+    from telethon import TelegramClient
+    from telethon.sessions import StringSession
+    from telethon.tl.functions.account import CheckUsernameRequest
+    from telethon.tl.functions.channels import CreateChannelRequest, UpdateUsernameRequest, DeleteChannelRequest
+    from telethon.errors import FloodWaitError
+    
+    while True:
+        try:
+            async with aiosqlite.connect(DB_PATH) as db:
+                db.row_factory = aiosqlite.Row
+                async with db.execute("SELECT t.id, t.telegram_id, t.username, u.session_string FROM monitoring_tasks t JOIN users u ON t.telegram_id=u.telegram_id WHERE t.status='monitoring'") as c:
+                    tasks = await c.fetchall()
+            
+            for task in tasks:
+                if not task["session_string"]: continue
+                try:
+                    client = TelegramClient(StringSession(task["session_string"]), API_ID, API_HASH)
+                    await client.connect()
+                    
+                    is_free = await client(CheckUsernameRequest(username=task["username"]))
+                    if is_free:
+                        ch = None
+                        try:
+                            ch = await client(CreateChannelRequest(title=task["username"].capitalize(), about="Monitored", megagroup=False))
+                            ch_id = ch.chats[0].id
+                            await client(UpdateUsernameRequest(channel=ch_id, username=task["username"]))
+                            
+                            async with aiosqlite.connect(DB_PATH) as db:
+                                await db.execute("UPDATE monitoring_tasks SET status='claimed' WHERE id=?", (task["id"],))
+                                await db.commit()
+                                
+                            try:
+                                await bot.send_message(
+                                    task["telegram_id"],
+                                    f"🎯 <b>Nishon olindi!</b>\n\nKutgan usernamengiz bo'shadi va Siz uchun band qilindi: <b>@{task['username']}</b>",
+                                    parse_mode="HTML"
+                                )
+                            except: pass
+                        except Exception as inner_e:
+                            if ch:
+                                try: await client(DeleteChannelRequest(channel=ch.chats[0].id))
+                                except: pass
+                            if "ChannelsAdminPublicTooMuchError" in str(type(inner_e)):
+                                async with aiosqlite.connect(DB_PATH) as db:
+                                    await db.execute("UPDATE monitoring_tasks SET status='failed_limit' WHERE id=?", (task["id"],))
+                                    await db.commit()
+                                try:
+                                    await bot.send_message(task["telegram_id"], f"❌ @{task['username']} bo'shadi, lekin ommaviy link limiti tugagani uchun ololmadim.")
+                                except: pass
+                    
+                    await client.disconnect()
+                except FloodWaitError as e:
+                    await asyncio.sleep(e.seconds)
+                except Exception:
+                    pass
+                await asyncio.sleep(2)
+        except Exception as e:
+            logger.error(f"Monitoring loop xato: {e}")
+        await asyncio.sleep(300)
+
 # ─── FASTAPI APP ──────────────────────────────
 app = FastAPI()
 
@@ -592,6 +710,42 @@ async def api_orders(init_data: str = ""):
             async with db.execute("SELECT username FROM registered_usernames WHERE order_id=?", (o['id'],)) as c:
                 o['usernames'] = [r[0] for r in await c.fetchall()]
     return orders
+
+@app.post("/api/monitor/start")
+async def api_monitor_start(request: Request):
+    data = await request.json()
+    user = verify_init_data(data.get('init_data',''))
+    if not user: raise HTTPException(403)
+    tid = user['id']
+    username = data.get('username','').strip().replace('@', '').lower()
+    
+    if not username or len(username) < 5:
+        return {"ok": False, "error": "Noto'g'ri username"}
+        
+    row = await get_user(tid)
+    if not row or not row['session_string']:
+        return {"ok": False, "error": "Akkaunt ulanmagan"}
+        
+    price = 10000 # Kafolat puli (monitor qilish uchun)
+    if (row['balance'] or 0) < price:
+        return {"ok": False, "error": f"Balans yetarli emas (Kerak: {price:,} so'm)"}
+        
+    await deduct_balance(tid, price)
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("INSERT INTO monitoring_tasks (telegram_id, username) VALUES (?,?)", (tid, username))
+        await db.commit()
+    return {"ok": True}
+
+@app.get("/api/monitor/list")
+async def api_monitor_list(init_data: str = ""):
+    user = verify_init_data(init_data)
+    if not user: raise HTTPException(403)
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM monitoring_tasks WHERE telegram_id=? ORDER BY id DESC", (user['id'],)) as c:
+            tasks = [dict(r) for r in await c.fetchall()]
+    return {"ok": True, "tasks": tasks}
 
 @app.post("/api/search/start")
 async def api_search_start(request: Request):
@@ -939,6 +1093,9 @@ async def main():
     dp  = Dispatcher()
     dp.include_router(router)
     logger.info("🤖 Bot + 🌐 Web ishga tushdi!")
+    
+    # Orqa fonda monitoring loop ni ishga tushiramiz
+    asyncio.create_task(monitoring_loop(bot))
 
     # Aiogram bot va FastAPI parallel ishlatish
     config = uvicorn.Config(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)), log_level="warning")
