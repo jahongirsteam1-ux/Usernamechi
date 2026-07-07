@@ -42,7 +42,7 @@ API_ID        = int(os.getenv("API_ID", "0"))
 API_HASH      = os.getenv("API_HASH", "")
 ADMIN_IDS     = [int(x) for x in os.getenv("ADMIN_IDS", "0").split(",") if x.strip()]
 DB_PATH       = "saas.db"
-WEB_URL       = os.getenv("WEB_HOST", "http://localhost:8000")
+WEB_URL       = os.getenv("WEB_HOST", "https://your-app.railway.app")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 logger = logging.getLogger(__name__)
