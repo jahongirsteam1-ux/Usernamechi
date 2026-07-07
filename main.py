@@ -25,7 +25,7 @@ from aiogram.types import (
     ReplyKeyboardMarkup, KeyboardButton,
     WebAppInfo, ReplyKeyboardRemove
 )
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 from dotenv import load_dotenv
 
 from fastapi import FastAPI, Request, UploadFile, File, Form, Header, HTTPException
@@ -179,18 +179,6 @@ user_states = {}
 @router.message(CommandStart())
 async def start_cmd(message: Message):
     await create_user(message.from_user.id)
-    
-    # Admin panelga kirish
-    if "admin" in message.text:
-        if message.from_user.id in ADMIN_IDS:
-            token = get_admin_token(message.from_user.id)
-            markup = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="🔧 Admin Panelga kirish", web_app=WebAppInfo(url=f"{WEB_URL}/admin?token={token}"))]
-            ])
-            await message.answer("Xush kelibsiz, Admin! Quyidagi tugma orqali panelga kiring:", reply_markup=markup)
-        else:
-            await message.answer("Sizda admin huquqi yo'q.")
-        return
 
     # Eski pastki klaviaturani tozalash
     tmp_msg = await message.answer("🔄", reply_markup=ReplyKeyboardRemove())
@@ -204,6 +192,17 @@ async def start_cmd(message: Message):
         reply_markup=main_menu(),
         parse_mode="HTML"
     )
+
+@router.message(Command("admin"))
+async def admin_cmd(message: Message):
+    if message.from_user.id not in ADMIN_IDS:
+        await message.answer("❌ Sizda admin huquqi yo'q.")
+        return
+    token = get_admin_token(message.from_user.id)
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔧 Admin Panelga kirish", web_app=WebAppInfo(url=f"{WEB_URL}/admin?token={token}"))]
+    ])
+    await message.answer("Xush kelibsiz, Admin! 👑\nQuyidagi tugma orqali panelga kiring:", reply_markup=markup)
 
 
 async def save_session(telegram_id, session_string):
