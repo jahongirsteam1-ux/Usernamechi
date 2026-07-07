@@ -381,27 +381,43 @@ async def run_sniper(bot, telegram_id: int, order_id: int, category: str, quanti
             try:
                 is_free = await client(CheckUsernameRequest(username=username))
                 if is_free:
-                    ch = await client(CreateChannelRequest(title=username.capitalize(), about="", megagroup=False))
-                    ch_id = ch.chats[0].id
-                    await client(UpdateUsernameRequest(channel=ch_id, username=username))
-                    found.append(username)
+                    ch = None
+                    try:
+                        ch = await client(CreateChannelRequest(title=username.capitalize(), about="Usernamechi", megagroup=False))
+                        ch_id = ch.chats[0].id
+                        await client(UpdateUsernameRequest(channel=ch_id, username=username))
+                        
+                        found.append(username)
+                        async with aiosqlite.connect(DB_PATH) as db:
+                            await db.execute(
+                                "INSERT INTO registered_usernames (order_id, username) VALUES (?,?)",
+                                (order_id, username)
+                            )
+                            await db.execute(
+                                "UPDATE orders SET registered_count=registered_count+1 WHERE id=?",
+                                (order_id,)
+                            )
+                            await db.commit()
 
-                    async with aiosqlite.connect(DB_PATH) as db:
-                        await db.execute(
-                            "INSERT INTO registered_usernames (order_id, username) VALUES (?,?)",
-                            (order_id, username)
+                        await bot.send_message(
+                            telegram_id,
+                            f"✅ @{username} band qilindi! ({len(found)}/{quantity})",
+                            parse_mode="HTML"
                         )
-                        await db.execute(
-                            "UPDATE orders SET registered_count=registered_count+1 WHERE id=?",
-                            (order_id,)
-                        )
-                        await db.commit()
+                    except Exception as inner_e:
+                        if ch:
+                            from telethon.tl.functions.channels import DeleteChannelRequest
+                            try:
+                                await client(DeleteChannelRequest(channel=ch.chats[0].id))
+                            except:
+                                pass
+                        
+                        # Stop process if they reached max public channels limit
+                        if "ChannelsAdminPublicTooMuchError" in str(type(inner_e)):
+                            await bot.send_message(telegram_id, "❌ <b>Diqqat:</b> Sizda ommaviy link (username) yaratish limiti tugagan! (Max 10 ta, Premiumda 20 ta).\nJarayon to'xtatildi.", parse_mode="HTML")
+                            break
+                        raise inner_e # Re-raise for general error handling
 
-                    await bot.send_message(
-                        telegram_id,
-                        f"✅ @{username} band qilindi! ({len(found)}/{quantity})",
-                        parse_mode="HTML"
-                    )
                 await asyncio.sleep(1)
             except FloodWaitError as e:
                 await asyncio.sleep(e.seconds)
