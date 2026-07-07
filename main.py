@@ -181,12 +181,13 @@ user_states = {}
 async def start_cmd(message: Message):
     await create_user(message.from_user.id)
     user = await get_user(message.from_user.id)
+    price = int(await get_setting("username_price", 5000))
     await message.answer(
         f"👋 Xush kelibsiz, <b>{message.from_user.first_name}</b>!\n\n"
         f"Bu bot orqali <b>qisqa va ma'noli</b> Telegram usernamelarni "
         f"avtomatik band qilib olishingiz mumkin.\n\n"
         f"💰 Balansingiz: <b>{user['balance'] if user else 0:,} so'm</b>\n"
-        f"💡 1 ta username = <b>{USERNAME_PRICE:,} so'm</b>",
+        f"💡 1 ta username = <b>{price:,} so'm</b>",
         reply_markup=main_menu(),
         parse_mode="HTML"
     )
