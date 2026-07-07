@@ -12,6 +12,10 @@ import os
 import re
 import random
 import string
+import hashlib
+import hmac
+import json
+import time
 import aiosqlite
 
 from aiogram import Bot, Dispatcher, Router, F
@@ -23,6 +27,11 @@ from aiogram.types import (
 from aiogram.filters import CommandStart
 from dotenv import load_dotenv
 
+from fastapi import FastAPI, Request, UploadFile, File, Form, Header, HTTPException
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+import uvicorn
+
 load_dotenv()
 
 # ─── SOZLAMALAR ──────────────────────────────
@@ -31,7 +40,9 @@ ADMIN_CHANNEL = int(os.getenv("ADMIN_CHANNEL", "0"))
 PAYMENT_CARD  = os.getenv("PAYMENT_CARD", "")
 API_ID        = int(os.getenv("API_ID", "0"))
 API_HASH      = os.getenv("API_HASH", "")
+ADMIN_IDS     = [int(x) for x in os.getenv("ADMIN_IDS", "0").split(",") if x.strip()]
 DB_PATH       = "saas.db"
+WEB_URL       = os.getenv("WEB_HOST", "http://localhost:8000")
 USERNAME_PRICE = 5000  # 1 ta username narxi (so'm)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
@@ -64,6 +75,16 @@ async def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 order_id INTEGER,
                 username TEXT
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS payments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                telegram_id INTEGER,
+                photo_id TEXT,
+                amount INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'pending',
+                created_at REAL DEFAULT (strftime('%s','now'))
             )
         """)
         await db.commit()
@@ -482,14 +503,300 @@ async def run_sniper(bot, telegram_id: int, order_id: int, category: str, quanti
     except Exception as e:
         logger.error(f"Sniper run error: {e}")
 
+# ─── FASTAPI APP ──────────────────────────────
+app = FastAPI()
+
+# Static files
+if os.path.exists("static"):
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# ── Helper: Telegram initData verifikatsiya ────
+def verify_init_data(init_data: str) -> dict | None:
+    """Telegram WebApp init_data ni tekshiradi."""
+    try:
+        params = dict(p.split('=', 1) for p in init_data.split('&') if '=' in p)
+        received_hash = params.pop('hash', '')
+        data_check = '\n'.join(f'{k}={v}' for k, v in sorted(params.items()))
+        secret = hmac.new(b'WebAppData', BOT_TOKEN.encode(), hashlib.sha256).digest()
+        calc_hash = hmac.new(secret, data_check.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(calc_hash, received_hash):
+            return None
+        user_str = params.get('user', '{}')
+        return json.loads(user_str)
+    except:
+        return None
+
+def get_admin_token(telegram_id: int) -> str:
+    secret = BOT_TOKEN + str(telegram_id)
+    return hashlib.sha256(secret.encode()).hexdigest()[:32]
+
+# ── Mini App Pages ─────────────────────────────
+@app.get("/app", response_class=HTMLResponse)
+async def mini_app():
+    with open("static/app/index.html") as f:
+        return f.read()
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_panel():
+    with open("static/admin/index.html") as f:
+        return f.read()
+
+# ── Mini App API ───────────────────────────────
+@app.get("/api/user")
+async def api_user(init_data: str = ""):
+    user = verify_init_data(init_data)
+    if not user:
+        raise HTTPException(403, "Invalid init_data")
+    tid = user['id']
+    await create_user(tid)
+    row = await get_user(tid)
+    # Count stats
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT COUNT(*) FROM orders WHERE telegram_id=?", (tid,)) as c:
+            total_orders = (await c.fetchone())[0]
+        async with db.execute("SELECT COUNT(*) FROM registered_usernames ru JOIN orders o ON ru.order_id=o.id WHERE o.telegram_id=?", (tid,)) as c:
+            total_usernames = (await c.fetchone())[0]
+    return {"balance": row["balance"] if row else 0, "session_string": bool(row["session_string"]) if row else False,
+            "total_orders": total_orders, "total_usernames": total_usernames}
+
+@app.get("/api/card")
+async def api_card():
+    return {"card": PAYMENT_CARD}
+
+@app.get("/api/orders")
+async def api_orders(init_data: str = ""):
+    user = verify_init_data(init_data)
+    if not user:
+        raise HTTPException(403)
+    tid = user['id']
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM orders WHERE telegram_id=? ORDER BY id DESC LIMIT 20", (tid,)) as c:
+            orders = [dict(o) for o in await c.fetchall()]
+        for o in orders:
+            async with db.execute("SELECT username FROM registered_usernames WHERE order_id=?", (o['id'],)) as c:
+                o['usernames'] = [r[0] for r in await c.fetchall()]
+    return orders
+
+@app.post("/api/order")
+async def api_order(request: Request):
+    data = await request.json()
+    user = verify_init_data(data.get('init_data',''))
+    if not user:
+        raise HTTPException(403)
+    tid = user['id']
+    cat = data.get('category','').strip()
+    qty = int(data.get('quantity', 1))
+    if not cat or not 1 <= qty <= 10:
+        return {"ok": False, "error": "Noto'g'ri ma'lumot"}
+    row = await get_user(tid)
+    if not row or not row['session_string']:
+        return {"ok": False, "error": "Akkaunt ulanmagan"}
+    price = qty * USERNAME_PRICE
+    if (row['balance'] or 0) < price:
+        return {"ok": False, "error": "Balans yetarli emas"}
+    await deduct_balance(tid, price)
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute("INSERT INTO orders (telegram_id,category,quantity,price,status) VALUES (?,?,?,?,'processing')",
+                               (tid, cat, qty, price))
+        order_id = cur.lastrowid
+        await db.commit()
+    bot_instance = Bot(token=BOT_TOKEN)
+    asyncio.create_task(run_sniper(bot_instance, tid, order_id, cat, qty))
+    return {"ok": True}
+
+@app.post("/api/receipt")
+async def api_receipt(request: Request, photo: UploadFile = File(...), init_data: str = Form(...)):
+    user = verify_init_data(init_data)
+    if not user:
+        raise HTTPException(403)
+    tid = user['id']
+    content = await photo.read()
+    bot_instance = Bot(token=BOT_TOKEN)
+    # Bazaga yozamiz
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("INSERT INTO payments (telegram_id, status) VALUES (?, 'pending')", (tid,))
+        await db.commit()
+    # Adminga yuboramiz
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ 10,000", callback_data=f"pay_{tid}_10000"),
+         InlineKeyboardButton(text="✅ 25,000", callback_data=f"pay_{tid}_25000")],
+        [InlineKeyboardButton(text="✅ 50,000", callback_data=f"pay_{tid}_50000"),
+         InlineKeyboardButton(text="✅ 100,000", callback_data=f"pay_{tid}_100000")],
+        [InlineKeyboardButton(text="❌ Rad etish", callback_data=f"pay_reject_{tid}")]
+    ])
+    try:
+        from aiogram.types import BufferedInputFile
+        input_photo = BufferedInputFile(content, filename=photo.filename or "chek.jpg")
+        await bot_instance.send_photo(chat_id=ADMIN_CHANNEL, photo=input_photo,
+                                      caption=f"💰 Chek\nFoydalanuvchi: {tid}", reply_markup=markup)
+    except Exception as e:
+        logger.error(f"Receipt send error: {e}")
+    finally:
+        await bot_instance.session.close()
+    return {"ok": True}
+
+@app.post("/api/session")
+async def api_session(request: Request):
+    data = await request.json()
+    user = verify_init_data(data.get('init_data',''))
+    if not user:
+        raise HTTPException(403)
+    session = data.get('session_string','').strip()
+    if len(session) < 50:
+        return {"ok": False, "error": "Session string juda qisqa"}
+    await save_session(user['id'], session)
+    return {"ok": True}
+
+@app.post("/api/session/disconnect")
+async def api_disconnect(request: Request):
+    data = await request.json()
+    user = verify_init_data(data.get('init_data',''))
+    if not user:
+        raise HTTPException(403)
+    await save_session(user['id'], None)
+    return {"ok": True}
+
+# ── Admin API ──────────────────────────────────
+@app.get("/api/admin/auth")
+async def admin_auth(request: Request):
+    """Telegram Login Widget orqali kirish"""
+    params = dict(request.query_params)
+    if not params:
+        # Bot ga redirect qilamiz
+        return RedirectResponse(f"https://t.me/{(await Bot(token=BOT_TOKEN).get_me()).username}?start=admin")
+    tid = int(params.get('id', 0))
+    if tid not in ADMIN_IDS:
+        return HTMLResponse("<h2>Ruxsat yo'q</h2>", status_code=403)
+    token = get_admin_token(tid)
+    return RedirectResponse(f"/admin?token={token}")
+
+@app.get("/api/admin/check")
+async def admin_check(x_admin_token: str = Header(default="")):
+    for aid in ADMIN_IDS:
+        if get_admin_token(aid) == x_admin_token:
+            return {"ok": True}
+    raise HTTPException(403, "Ruxsat yo'q")
+
+@app.get("/api/admin/stats")
+async def admin_stats(x_admin_token: str = Header(default="")):
+    for aid in ADMIN_IDS:
+        if get_admin_token(aid) == x_admin_token:
+            break
+    else:
+        raise HTTPException(403)
+    async with aiosqlite.connect(DB_PATH) as db:
+        users = (await (await db.execute("SELECT COUNT(*) FROM users")).fetchone())[0]
+        orders = (await (await db.execute("SELECT COUNT(*) FROM orders")).fetchone())[0]
+        usernames = (await (await db.execute("SELECT COUNT(*) FROM registered_usernames")).fetchone())[0]
+        revenue = (await (await db.execute("SELECT COALESCE(SUM(amount),0) FROM payments WHERE status='approved'")).fetchone())[0]
+        # Last 7 days
+        labels, d_revenue, d_orders, d_users = [], [], [], []
+        for i in range(6,-1,-1):
+            ts_start = time.time() - i*86400
+            ts_end = ts_start + 86400
+            day = time.strftime('%d/%m', time.localtime(ts_start))
+            r = (await (await db.execute("SELECT COALESCE(SUM(amount),0) FROM payments WHERE status='approved' AND created_at>=? AND created_at<?", (ts_start,ts_end))).fetchone())[0]
+            o = (await (await db.execute("SELECT COUNT(*) FROM orders WHERE rowid>=? AND rowid<?", (0,9999))).fetchone())[0]
+            u = (await (await db.execute("SELECT COUNT(*) FROM users")).fetchone())[0]
+            labels.append(day); d_revenue.append(r); d_orders.append(o); d_users.append(u)
+    return {"users":users,"orders":orders,"usernames":usernames,"revenue":revenue,
+            "daily_labels":labels,"daily_revenue":d_revenue,"daily_orders":d_orders,"daily_users":d_users}
+
+@app.get("/api/admin/payments")
+async def admin_payments(status: str = "", x_admin_token: str = Header(default="")):
+    for aid in ADMIN_IDS:
+        if get_admin_token(aid) == x_admin_token: break
+    else: raise HTTPException(403)
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        q = "SELECT * FROM payments" + (" WHERE status=?" if status else "") + " ORDER BY id DESC LIMIT 50"
+        args = (status,) if status else ()
+        async with db.execute(q, args) as c:
+            return [dict(r) for r in await c.fetchall()]
+
+@app.post("/api/admin/payment/approve")
+async def admin_approve(request: Request, x_admin_token: str = Header(default="")):
+    for aid in ADMIN_IDS:
+        if get_admin_token(aid) == x_admin_token: break
+    else: raise HTTPException(403)
+    data = await request.json()
+    pid = data['payment_id']; tid = data['telegram_id']; amt = data['amount']
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE payments SET status='approved', amount=? WHERE id=?", (amt, pid))
+        await db.execute("UPDATE users SET balance=balance+? WHERE telegram_id=?", (amt, tid))
+        await db.commit()
+    bot_instance = Bot(token=BOT_TOKEN)
+    try:
+        await bot_instance.send_message(tid, f"🎉 Balansingiz <b>{amt:,} so'm</b>ga to'ldirildi!", parse_mode="HTML")
+    finally:
+        await bot_instance.session.close()
+    return {"ok": True}
+
+@app.post("/api/admin/payment/reject")
+async def admin_reject(request: Request, x_admin_token: str = Header(default="")):
+    for aid in ADMIN_IDS:
+        if get_admin_token(aid) == x_admin_token: break
+    else: raise HTTPException(403)
+    data = await request.json()
+    pid = data['payment_id']; tid = data['telegram_id']
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE payments SET status='rejected' WHERE id=?", (pid,))
+        await db.commit()
+    bot_instance = Bot(token=BOT_TOKEN)
+    try:
+        await bot_instance.send_message(tid, "❌ To'lovingiz rad etildi.")
+    finally:
+        await bot_instance.session.close()
+    return {"ok": True}
+
+@app.get("/api/admin/users")
+async def admin_users(x_admin_token: str = Header(default="")):
+    for aid in ADMIN_IDS:
+        if get_admin_token(aid) == x_admin_token: break
+    else: raise HTTPException(403)
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT u.*, (SELECT COUNT(*) FROM orders WHERE telegram_id=u.telegram_id) as order_count FROM users u ORDER BY id DESC") as c:
+            return [dict(r) for r in await c.fetchall()]
+
+@app.post("/api/admin/user/balance")
+async def admin_set_balance(request: Request, x_admin_token: str = Header(default="")):
+    for aid in ADMIN_IDS:
+        if get_admin_token(aid) == x_admin_token: break
+    else: raise HTTPException(403)
+    data = await request.json()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE users SET balance=? WHERE telegram_id=?", (data['amount'], data['telegram_id']))
+        await db.commit()
+    return {"ok": True}
+
+@app.get("/api/admin/orders")
+async def admin_orders(x_admin_token: str = Header(default="")):
+    for aid in ADMIN_IDS:
+        if get_admin_token(aid) == x_admin_token: break
+    else: raise HTTPException(403)
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM orders ORDER BY id DESC LIMIT 100") as c:
+            return [dict(r) for r in await c.fetchall()]
+
 # ─── MAIN ─────────────────────────────────────
 async def main():
     await init_db()
     bot = Bot(token=BOT_TOKEN)
     dp  = Dispatcher()
     dp.include_router(router)
-    logger.info("🤖 Bot ishga tushdi!")
-    await dp.start_polling(bot)
+    logger.info("🤖 Bot + 🌐 Web ishga tushdi!")
+
+    # Aiogram bot va FastAPI parallel ishlatish
+    config = uvicorn.Config(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)), log_level="warning")
+    server = uvicorn.Server(config)
+
+    await asyncio.gather(
+        dp.start_polling(bot),
+        server.serve()
+    )
 
 if __name__ == "__main__":
     asyncio.run(main())

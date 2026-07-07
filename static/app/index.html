@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Usernamechi</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --card: rgba(255,255,255,0.05);
+    --border: rgba(255,255,255,0.1);
+    --accent: #7c3aed;
+    --accent2: #06b6d4;
+    --success: #10b981;
+    --danger: #ef4444;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* GRADIENT BG */
+  body::before {
+    content:'';
+    position:fixed; top:0; left:0; right:0; bottom:0;
+    background: radial-gradient(ellipse at 20% 20%, rgba(124,58,237,0.15) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 80%, rgba(6,182,212,0.1) 0%, transparent 60%);
+    pointer-events: none; z-index:0;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed; bottom:0; left:0; right:0;
+    background: rgba(10,10,15,0.95);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border);
+    display: flex; z-index: 100;
+    padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+  }
+  nav button {
+    flex: 1; background: none; border: none; color: var(--muted);
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-size: 10px; font-weight: 500; cursor: pointer;
+    padding: 6px 0; transition: color 0.2s;
+  }
+  nav button.active { color: var(--accent); }
+  nav button svg { width: 22px; height: 22px; }
+
+  /* PAGES */
+  .page { display:none; padding: 16px 16px 90px; position:relative; z-index:1; }
+  .page.active { display:block; }
+
+  /* CARDS */
+  .card {
+    background: var(--card);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .balance-card {
+    background: linear-gradient(135deg, rgba(124,58,237,0.3), rgba(6,182,212,0.2));
+    border-color: rgba(124,58,237,0.4);
+    text-align: center;
+    padding: 32px 20px;
+  }
+  .balance-card .label { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+  .balance-card .amount {
+    font-size: 42px; font-weight: 800;
+    background: linear-gradient(135deg, #a78bfa, #67e8f9);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 4px;
+  }
+  .balance-card .sub { color: var(--muted); font-size: 12px; }
+
+  /* STATS ROW */
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    text-align: center;
+  }
+  .stat-card .icon { font-size: 24px; margin-bottom: 8px; }
+  .stat-card .val { font-size: 22px; font-weight: 700; color: var(--text); }
+  .stat-card .lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* BUTTONS */
+  .btn {
+    width: 100%; padding: 16px;
+    border: none; border-radius: 14px;
+    font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #7c3aed, #06b6d4);
+    color: white; margin-bottom: 12px;
+  }
+  .btn-primary:active { transform: scale(0.97); opacity: 0.9; }
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text); margin-bottom: 12px;
+  }
+  .btn-success { background: linear-gradient(135deg, #059669, #10b981); color: white; margin-bottom: 12px; }
+  .btn-danger { background: linear-gradient(135deg, #dc2626, #ef4444); color: white; margin-bottom: 12px; }
+
+  /* FORM */
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display:block; color: var(--muted); font-size: 12px; font-weight: 500; margin-bottom: 8px; }
+  .form-group input, .form-group textarea, .form-group select {
+    width: 100%;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    color: var(--text);
+    font-size: 15px;
+    font-family: 'Inter', sans-serif;
+    outline: none; transition: border-color 0.2s;
+  }
+  .form-group input:focus, .form-group textarea:focus {
+    border-color: var(--accent);
+  }
+  .form-group textarea { resize: none; height: 100px; }
+
+  /* SECTION TITLE */
+  .section-title {
+    font-size: 18px; font-weight: 700;
+    margin-bottom: 16px; color: var(--text);
+  }
+  .section-title span {
+    background: linear-gradient(135deg, #a78bfa, #67e8f9);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
+  /* ORDER CARD */
+  .order-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .order-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .order-cat { font-weight: 600; font-size: 15px; }
+  .badge {
+    padding: 4px 10px; border-radius: 20px;
+    font-size: 11px; font-weight: 600;
+  }
+  .badge-pending { background: rgba(234,179,8,0.2); color: #fbbf24; }
+  .badge-processing { background: rgba(59,130,246,0.2); color: #60a5fa; }
+  .badge-completed { background: rgba(16,185,129,0.2); color: #34d399; }
+  .order-meta { color: var(--muted); font-size: 12px; }
+  .usernames-list { margin-top: 10px; }
+  .username-chip {
+    display: inline-block;
+    background: rgba(124,58,237,0.2);
+    border: 1px solid rgba(124,58,237,0.3);
+    border-radius: 8px; padding: 4px 10px;
+    font-size: 12px; color: #a78bfa; margin: 3px 3px 0 0;
+  }
+
+  /* PRICE CALC */
+  .price-box {
+    background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(6,182,212,0.1));
+    border: 1px solid rgba(124,58,237,0.3);
+    border-radius: 14px; padding: 16px; margin-bottom: 16px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .price-box .price-label { color: var(--muted); font-size: 13px; }
+  .price-box .price-val {
+    font-size: 22px; font-weight: 800;
+    background: linear-gradient(135deg, #a78bfa, #67e8f9);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
+  /* ACCOUNT */
+  .account-status {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 16px; margin-bottom: 16px;
+  }
+  .status-dot {
+    width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+  }
+  .status-dot.connected { background: var(--success); box-shadow: 0 0 8px var(--success); }
+  .status-dot.disconnected { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+  .account-info .name { font-weight: 600; font-size: 15px; }
+  .account-info .sub { color: var(--muted); font-size: 12px; }
+
+  /* TOAST */
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    background: rgba(30,30,40,0.95); backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px 20px;
+    font-size: 13px; font-weight: 500;
+    z-index: 999; opacity: 0; transition: opacity 0.3s;
+    max-width: 90%; text-align: center;
+  }
+  .toast.show { opacity: 1; }
+  .toast.success { border-color: var(--success); color: #34d399; }
+  .toast.error { border-color: var(--danger); color: #f87171; }
+
+  /* HEADER */
+  .page-header {
+    padding: 20px 0 16px;
+    font-size: 24px; font-weight: 800;
+  }
+
+  /* LOADING */
+  .spinner {
+    width: 24px; height: 24px; border: 2px solid rgba(255,255,255,0.1);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* UPLOAD PHOTO */
+  .upload-zone {
+    border: 2px dashed var(--border); border-radius: 16px;
+    padding: 32px; text-align: center; cursor: pointer;
+    transition: border-color 0.2s; margin-bottom: 16px;
+  }
+  .upload-zone:hover { border-color: var(--accent); }
+  .upload-zone img { max-width: 100%; max-height: 200px; border-radius: 8px; }
+  .upload-zone .upload-icon { font-size: 40px; margin-bottom: 12px; }
+  .upload-zone .upload-text { color: var(--muted); font-size: 14px; }
+  #photo-input { display: none; }
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- HOME PAGE -->
+<div class="page active" id="page-home">
+  <div class="page-header">Salom, <span id="user-name">...</span> 👋</div>
+
+  <div class="balance-card card">
+    <div class="label">Balansingiz</div>
+    <div class="amount" id="home-balance">0</div>
+    <div class="sub">so'm</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="icon">🎯</div>
+      <div class="val" id="stat-orders">0</div>
+      <div class="lbl">Buyurtmalar</div>
+    </div>
+    <div class="stat-card">
+      <div class="icon">✅</div>
+      <div class="val" id="stat-usernames">0</div>
+      <div class="lbl">Band qilingan</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="color:var(--muted);font-size:13px;margin-bottom:12px;">Tezkor amallar</div>
+    <button class="btn btn-primary" onclick="goPage('buy')">
+      <span>🛒</span> Username sotib olish
+    </button>
+    <button class="btn btn-outline" onclick="goPage('balance')">
+      <span>💳</span> Balansni to'ldirish
+    </button>
+  </div>
+</div>
+
+<!-- BUY PAGE -->
+<div class="page" id="page-buy">
+  <div class="page-header"><span>Username</span> sotib olish</div>
+
+  <div class="card" id="no-session-warn" style="display:none;background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.3);">
+    ⚠️ Avval akkauntingizni ulang!
+    <br><small style="color:var(--muted)">Pastdagi "Akkaunt" bo'limiga o'ting.</small>
+  </div>
+
+  <div class="form-group">
+    <label>KATEGORIYA (so'z kiriting)</label>
+    <input type="text" id="buy-category" placeholder="dastur, kino, biznes, savdo..." oninput="updatePrice()">
+    <div style="color:var(--muted);font-size:11px;margin-top:6px;">
+      💡 Bot shu so'zdan yuzlab variant yasab, bo'shlarini band qiladi
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>SONI (1–10 ta)</label>
+    <input type="number" id="buy-qty" min="1" max="10" value="1" oninput="updatePrice()">
+  </div>
+
+  <div class="price-box">
+    <div class="price-label">Jami narx</div>
+    <div class="price-val" id="buy-price">5,000 so'm</div>
+  </div>
+
+  <div id="balance-warning" style="display:none;color:#f87171;font-size:13px;margin-bottom:12px;text-align:center;">
+    ❌ Balans yetarli emas. Avval to'ldiring!
+  </div>
+
+  <button class="btn btn-primary" id="buy-btn" onclick="submitOrder()">
+    ✅ Buyurtma berish
+  </button>
+</div>
+
+<!-- BALANCE PAGE -->
+<div class="page" id="page-balance">
+  <div class="page-header">💳 <span>Balans</span></div>
+
+  <div class="balance-card card">
+    <div class="label">Joriy balans</div>
+    <div class="amount" id="bal-amount">0</div>
+    <div class="sub">so'm</div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Karta raqamiga to'lang</div>
+    <div style="background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:16px;text-align:center;margin-bottom:16px;">
+      <div style="color:var(--muted);font-size:12px;margin-bottom:6px;">To'lov kartasi</div>
+      <div id="card-number" style="font-size:20px;font-weight:700;letter-spacing:2px;">8600 XXXX XXXX XXXX</div>
+      <button onclick="copyCard()" style="background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;margin-top:8px;">📋 Nusxalash</button>
+    </div>
+
+    <div class="upload-zone" onclick="document.getElementById('photo-input').click()" id="upload-zone">
+      <div id="upload-preview">
+        <div class="upload-icon">📸</div>
+        <div class="upload-text">To'lov chekini (screenshot) yuklang</div>
+      </div>
+    </div>
+    <input type="file" id="photo-input" accept="image/*" onchange="previewPhoto(event)">
+
+    <button class="btn btn-success" onclick="sendReceipt()">
+      📤 Chekni yuborish
+    </button>
+    <div style="color:var(--muted);font-size:12px;text-align:center;">
+      Admin 5–15 daqiqa ichida tasdiqlab, balansingizni to'ldiradi
+    </div>
+  </div>
+</div>
+
+<!-- ORDERS PAGE -->
+<div class="page" id="page-orders">
+  <div class="page-header">📋 <span>Buyurtmalarim</span></div>
+  <div id="orders-list">
+    <div style="text-align:center;padding:40px;color:var(--muted);">
+      <div style="font-size:48px;margin-bottom:12px;">📭</div>
+      Buyurtmalar yo'q
+    </div>
+  </div>
+</div>
+
+<!-- ACCOUNT PAGE -->
+<div class="page" id="page-account">
+  <div class="page-header">🔗 <span>Akkaunt</span></div>
+
+  <div class="account-status" id="account-status">
+    <div class="status-dot disconnected" id="status-dot"></div>
+    <div class="account-info">
+      <div class="name" id="account-name">Akkaunt ulanmagan</div>
+      <div class="sub" id="account-sub">Username band qilish uchun ulang</div>
+    </div>
+  </div>
+
+  <div class="card" id="session-form-wrap">
+    <div class="section-title">Session String <span>ulash</span></div>
+    <div style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.2);border-radius:12px;padding:14px;margin-bottom:16px;font-size:13px;line-height:1.6;">
+      <b>Qanday olish mumkin:</b><br>
+      1️⃣ <b>@StringSessionBot</b> ga kiring<br>
+      2️⃣ /generate yuboring<br>
+      3️⃣ API ID, API HASH, Telefon va SMS kodni kiriting<br>
+      4️⃣ Berilgan uzun stringni quyiga joylashtiring
+    </div>
+    <div class="form-group">
+      <label>SESSION STRING</label>
+      <textarea id="session-input" placeholder="BQABx7...uzun matn..."></textarea>
+    </div>
+    <button class="btn btn-primary" onclick="saveSession()">
+      🔗 Akkauntni ulash
+    </button>
+  </div>
+
+  <div id="disconnect-wrap" style="display:none;margin-top:8px;">
+    <button class="btn btn-danger" onclick="disconnectAccount()">
+      🔌 Uzish
+    </button>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav>
+  <button class="active" id="nav-home" onclick="goPage('home')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+    Bosh
+  </button>
+  <button id="nav-buy" onclick="goPage('buy')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+    Sotib olish
+  </button>
+  <button id="nav-balance" onclick="goPage('balance')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+    Balans
+  </button>
+  <button id="nav-orders" onclick="goPage('orders')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+    Buyurtmalar
+  </button>
+  <button id="nav-account" onclick="goPage('account')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    Akkaunt
+  </button>
+</nav>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.expand();
+tg.setHeaderColor('#0a0a0f');
+tg.setBackgroundColor('#0a0a0f');
+
+const API = '';  // same origin
+let userData = {};
+let photoFile = null;
+
+// ── INIT ──────────────────────────────────────
+async function init() {
+  const tgUser = tg.initDataUnsafe?.user;
+  if (tgUser) {
+    document.getElementById('user-name').textContent = tgUser.first_name || 'Foydalanuvchi';
+  }
+  await loadUserData();
+  await loadOrders();
+  loadCardNumber();
+}
+
+async function loadUserData() {
+  try {
+    const res = await fetch(`${API}/api/user?init_data=${encodeURIComponent(tg.initData)}`);
+    if (!res.ok) return;
+    userData = await res.json();
+    const bal = userData.balance || 0;
+    document.getElementById('home-balance').textContent = bal.toLocaleString();
+    document.getElementById('bal-amount').textContent = bal.toLocaleString();
+    document.getElementById('stat-orders').textContent = userData.total_orders || 0;
+    document.getElementById('stat-usernames').textContent = userData.total_usernames || 0;
+
+    if (userData.session_string) {
+      document.getElementById('status-dot').className = 'status-dot connected';
+      document.getElementById('account-name').textContent = '✅ Akkaunt ulangan';
+      document.getElementById('account-sub').textContent = 'Username band qilishga tayyor';
+      document.getElementById('session-form-wrap').style.display = 'none';
+      document.getElementById('disconnect-wrap').style.display = 'block';
+      document.getElementById('no-session-warn').style.display = 'none';
+    } else {
+      document.getElementById('no-session-warn').style.display = 'block';
+    }
+  } catch(e) { console.error(e); }
+}
+
+async function loadCardNumber() {
+  try {
+    const res = await fetch(`${API}/api/card`);
+    const d = await res.json();
+    if (d.card) {
+      const c = d.card;
+      document.getElementById('card-number').textContent =
+        c.slice(0,4)+' '+c.slice(4,8)+' '+c.slice(8,12)+' '+c.slice(12);
+    }
+  } catch(e) {}
+}
+
+async function loadOrders() {
+  try {
+    const res = await fetch(`${API}/api/orders?init_data=${encodeURIComponent(tg.initData)}`);
+    const orders = await res.json();
+    const el = document.getElementById('orders-list');
+    if (!orders.length) {
+      el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted);">
+        <div style="font-size:48px;margin-bottom:12px;">📭</div>Buyurtmalar yo'q</div>`;
+      return;
+    }
+    el.innerHTML = orders.map(o => {
+      const statusMap = {pending:'badge-pending',processing:'badge-processing',completed:'badge-completed'};
+      const statusTxt = {pending:'⏳ Kutilmoqda',processing:'🔄 Qidirilmoqda',completed:'✅ Bajarildi'};
+      const chips = (o.usernames || []).map(u => `<span class="username-chip">@${u}</span>`).join('');
+      return `<div class="order-item">
+        <div class="order-top">
+          <div class="order-cat">📂 ${o.category}</div>
+          <span class="badge ${statusMap[o.status]||'badge-pending'}">${statusTxt[o.status]||o.status}</span>
+        </div>
+        <div class="order-meta">${o.registered_count}/${o.quantity} ta band • ${(o.price||0).toLocaleString()} so'm</div>
+        ${chips ? `<div class="usernames-list">${chips}</div>` : ''}
+      </div>`;
+    }).join('');
+  } catch(e) { console.error(e); }
+}
+
+// ── NAVIGATION ────────────────────────────────
+function goPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  document.getElementById('nav-'+name).classList.add('active');
+  if(name==='orders') loadOrders();
+  if(name==='balance'||name==='home') loadUserData();
+}
+
+// ── PRICE CALC ────────────────────────────────
+function updatePrice() {
+  const qty = parseInt(document.getElementById('buy-qty').value) || 1;
+  const price = qty * 5000;
+  document.getElementById('buy-price').textContent = price.toLocaleString()+' so\'m';
+  const warn = document.getElementById('balance-warning');
+  if ((userData.balance||0) < price) { warn.style.display='block'; }
+  else { warn.style.display='none'; }
+}
+
+// ── SUBMIT ORDER ──────────────────────────────
+async function submitOrder() {
+  const cat = document.getElementById('buy-category').value.trim();
+  const qty = parseInt(document.getElementById('buy-qty').value)||1;
+  if (!cat) { showToast('Kategoriya kiriting!','error'); return; }
+  if (!userData.session_string) { showToast('Avval akkauntni ulang!','error'); goPage('account'); return; }
+  const price = qty*5000;
+  if ((userData.balance||0) < price) { showToast('Balans yetarli emas!','error'); return; }
+  const btn = document.getElementById('buy-btn');
+  btn.innerHTML = '<div class="spinner"></div>';
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${API}/api/order`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({init_data: tg.initData, category:cat, quantity:qty})
+    });
+    const d = await res.json();
+    if (d.ok) {
+      showToast('✅ Buyurtma qabul qilindi!','success');
+      await loadUserData();
+      goPage('orders');
+    } else { showToast(d.error||'Xato yuz berdi','error'); }
+  } catch(e) { showToast('Xato yuz berdi','error'); }
+  btn.innerHTML = '✅ Buyurtma berish';
+  btn.disabled = false;
+}
+
+// ── RECEIPT ───────────────────────────────────
+function previewPhoto(e) {
+  photoFile = e.target.files[0];
+  if (!photoFile) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    document.getElementById('upload-preview').innerHTML = `<img src="${ev.target.result}" alt="chek">`;
+  };
+  reader.readAsDataURL(photoFile);
+}
+
+async function sendReceipt() {
+  if (!photoFile) { showToast('Avval chek rasmini tanlang','error'); return; }
+  const fd = new FormData();
+  fd.append('photo', photoFile);
+  fd.append('init_data', tg.initData);
+  try {
+    const res = await fetch(`${API}/api/receipt`, {method:'POST', body:fd});
+    const d = await res.json();
+    if (d.ok) {
+      showToast('✅ Chek yuborildi! Admin tasdiqlashi kutilmoqda','success');
+      photoFile = null;
+      document.getElementById('upload-preview').innerHTML = `
+        <div class="upload-icon">📸</div>
+        <div class="upload-text">To'lov chekini (screenshot) yuklang</div>`;
+    } else { showToast(d.error||'Xato','error'); }
+  } catch(e) { showToast('Xato yuz berdi','error'); }
+}
+
+function copyCard() {
+  const txt = document.getElementById('card-number').textContent.replace(/\s/g,'');
+  navigator.clipboard?.writeText(txt);
+  showToast('📋 Nusxalandi!','success');
+}
+
+// ── SESSION ───────────────────────────────────
+async function saveSession() {
+  const session = document.getElementById('session-input').value.trim();
+  if (session.length < 50) { showToast('Session string juda qisqa!','error'); return; }
+  try {
+    const res = await fetch(`${API}/api/session`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({init_data: tg.initData, session_string: session})
+    });
+    const d = await res.json();
+    if (d.ok) {
+      showToast('✅ Akkaunt ulandi!','success');
+      await loadUserData();
+    } else { showToast(d.error||'Xato','error'); }
+  } catch(e) { showToast('Xato yuz berdi','error'); }
+}
+
+async function disconnectAccount() {
+  if (!confirm('Akkauntni uzishni tasdiqlaysizmi?')) return;
+  try {
+    await fetch(`${API}/api/session/disconnect`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({init_data: tg.initData})
+    });
+    showToast('Akkaunt uzildi','success');
+    userData.session_string = null;
+    document.getElementById('status-dot').className = 'status-dot disconnected';
+    document.getElementById('account-name').textContent = 'Akkaunt ulanmagan';
+    document.getElementById('session-form-wrap').style.display = 'block';
+    document.getElementById('disconnect-wrap').style.display = 'none';
+  } catch(e) {}
+}
+
+// ── TOAST ─────────────────────────────────────
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast show ${type}`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+init();
+</script>
+</body>
+</html>

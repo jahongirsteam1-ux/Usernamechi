@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel — Usernamechi</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --bg: #070711;
+    --sidebar: #0d0d1a;
+    --card: rgba(255,255,255,0.04);
+    --border: rgba(255,255,255,0.08);
+    --accent: #7c3aed;
+    --accent2: #06b6d4;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --text: #f1f5f9;
+    --muted: #64748b;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; }
+
+  /* LOGIN */
+  #login-screen {
+    position:fixed; inset:0; background:var(--bg);
+    display:flex; align-items:center; justify-content:center; z-index:999;
+  }
+  .login-box {
+    background:var(--sidebar); border:1px solid var(--border);
+    border-radius:24px; padding:48px 40px; width:380px; text-align:center;
+  }
+  .login-logo { font-size:48px; margin-bottom:16px; }
+  .login-title { font-size:24px; font-weight:800; margin-bottom:8px; }
+  .login-sub { color:var(--muted); font-size:14px; margin-bottom:32px; }
+  .login-btn {
+    width:100%; padding:16px; background:linear-gradient(135deg,#7c3aed,#06b6d4);
+    border:none; border-radius:12px; color:#fff; font-size:16px; font-weight:600;
+    cursor:pointer; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:10px;
+    transition: opacity 0.2s;
+  }
+  .login-btn:hover { opacity:0.9; }
+
+  /* SIDEBAR */
+  aside {
+    width:240px; background:var(--sidebar);
+    border-right:1px solid var(--border);
+    display:flex; flex-direction:column; min-height:100vh;
+    position:fixed; left:0; top:0; bottom:0;
+  }
+  .logo {
+    padding:24px 20px; font-size:20px; font-weight:800;
+    background:linear-gradient(135deg,#a78bfa,#67e8f9);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    border-bottom:1px solid var(--border);
+  }
+  .logo span { display:block; font-size:11px; color:var(--muted); font-weight:400; -webkit-text-fill-color:#64748b; margin-top:2px; }
+  nav { flex:1; padding:16px 12px; }
+  nav a {
+    display:flex; align-items:center; gap:12px;
+    padding:10px 12px; border-radius:10px; margin-bottom:4px;
+    color:var(--muted); text-decoration:none; font-size:14px; font-weight:500;
+    transition:all 0.2s; cursor:pointer;
+  }
+  nav a:hover { background:var(--card); color:var(--text); }
+  nav a.active { background:rgba(124,58,237,0.15); color:#a78bfa; }
+  nav a svg { width:18px; height:18px; flex-shrink:0; }
+
+  /* MAIN */
+  main { margin-left:240px; flex:1; padding:32px; min-height:100vh; }
+  .page { display:none; }
+  .page.active { display:block; }
+  .page-title { font-size:28px; font-weight:800; margin-bottom:24px; }
+  .page-title span {
+    background:linear-gradient(135deg,#a78bfa,#67e8f9);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  }
+
+  /* STAT CARDS */
+  .stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:32px; }
+  .stat-box {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:16px; padding:20px;
+  }
+  .stat-box .s-icon { font-size:28px; margin-bottom:12px; }
+  .stat-box .s-val { font-size:32px; font-weight:800; margin-bottom:4px; }
+  .stat-box .s-lbl { color:var(--muted); font-size:13px; }
+  .stat-box.purple { border-color:rgba(124,58,237,0.3); }
+  .stat-box.purple .s-val { color:#a78bfa; }
+  .stat-box.cyan { border-color:rgba(6,182,212,0.3); }
+  .stat-box.cyan .s-val { color:#67e8f9; }
+  .stat-box.green { border-color:rgba(16,185,129,0.3); }
+  .stat-box.green .s-val { color:#34d399; }
+  .stat-box.yellow { border-color:rgba(245,158,11,0.3); }
+  .stat-box.yellow .s-val { color:#fbbf24; }
+
+  /* TABLE */
+  .table-card {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:16px; overflow:hidden; margin-bottom:24px;
+  }
+  .table-header {
+    padding:20px 24px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+    font-weight:700; font-size:15px;
+  }
+  table { width:100%; border-collapse:collapse; }
+  thead tr { background:rgba(255,255,255,0.02); }
+  th { padding:12px 24px; text-align:left; font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; }
+  td { padding:14px 24px; font-size:14px; border-top:1px solid var(--border); }
+  tr:hover td { background:rgba(255,255,255,0.02); }
+
+  /* BADGES */
+  .badge { padding:4px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+  .b-pending { background:rgba(245,158,11,0.15); color:#fbbf24; }
+  .b-processing { background:rgba(59,130,246,0.15); color:#60a5fa; }
+  .b-completed { background:rgba(16,185,129,0.15); color:#34d399; }
+
+  /* BUTTONS */
+  .btn { padding:8px 16px; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; transition:opacity 0.2s; }
+  .btn:hover { opacity:0.8; }
+  .btn-approve { background:rgba(16,185,129,0.2); color:#34d399; }
+  .btn-reject { background:rgba(239,68,68,0.2); color:#f87171; margin-left:6px; }
+  .btn-edit { background:rgba(124,58,237,0.2); color:#a78bfa; }
+  .btn-primary { background:linear-gradient(135deg,#7c3aed,#06b6d4); color:#fff; }
+
+  /* CHART */
+  .chart-card {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:16px; padding:24px; margin-bottom:24px;
+  }
+  .chart-title { font-weight:700; font-size:16px; margin-bottom:20px; }
+
+  /* TOAST */
+  .toast {
+    position:fixed; top:20px; right:20px;
+    background:rgba(30,30,40,0.95); backdrop-filter:blur(20px);
+    border:1px solid var(--border);
+    border-radius:12px; padding:14px 20px;
+    font-size:14px; font-weight:500; z-index:999;
+    opacity:0; transition:opacity 0.3s; min-width:250px;
+  }
+  .toast.show { opacity:1; }
+  .toast.success { border-color:var(--success); }
+  .toast.error { border-color:var(--danger); }
+
+  /* MODAL */
+  .modal-bg {
+    position:fixed; inset:0; background:rgba(0,0,0,0.7);
+    backdrop-filter:blur(4px); display:none;
+    align-items:center; justify-content:center; z-index:500;
+  }
+  .modal-bg.open { display:flex; }
+  .modal {
+    background:var(--sidebar); border:1px solid var(--border);
+    border-radius:20px; padding:32px; width:420px; max-width:90%;
+  }
+  .modal h3 { font-size:18px; font-weight:700; margin-bottom:20px; }
+  .modal input {
+    width:100%; background:var(--card); border:1px solid var(--border);
+    border-radius:10px; padding:12px 14px; color:var(--text);
+    font-size:14px; outline:none; margin-bottom:12px;
+  }
+  .modal input:focus { border-color:var(--accent); }
+  .modal-btns { display:flex; gap:10px; margin-top:16px; }
+
+  @media (max-width:1024px) {
+    .stat-grid { grid-template-columns:repeat(2,1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">🛡️</div>
+    <div class="login-title">Admin Panel</div>
+    <div class="login-sub">Kirish uchun Telegram orqali tasdiqlang</div>
+    <a href="/api/admin/auth" class="login-btn">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+      Telegram orqali kirish
+    </a>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<aside>
+  <div class="logo">
+    Usernamechi
+    <span>Admin Panel</span>
+  </div>
+  <nav>
+    <a class="active" onclick="goPage('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </a>
+    <a onclick="goPage('payments')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+      To'lovlar
+      <span id="pending-badge" style="margin-left:auto;background:var(--danger);color:#fff;border-radius:20px;padding:2px 8px;font-size:11px;display:none;"></span>
+    </a>
+    <a onclick="goPage('users')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Foydalanuvchilar
+    </a>
+    <a onclick="goPage('orders')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Buyurtmalar
+    </a>
+    <a onclick="goPage('stats')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Statistika
+    </a>
+  </nav>
+</aside>
+
+<!-- MAIN -->
+<main>
+  <!-- DASHBOARD -->
+  <div class="page active" id="page-dashboard">
+    <div class="page-title">Dashboard <span>📊</span></div>
+    <div class="stat-grid">
+      <div class="stat-box purple"><div class="s-icon">👥</div><div class="s-val" id="d-users">-</div><div class="s-lbl">Foydalanuvchilar</div></div>
+      <div class="stat-box cyan"><div class="s-icon">📋</div><div class="s-val" id="d-orders">-</div><div class="s-lbl">Buyurtmalar</div></div>
+      <div class="stat-box green"><div class="s-icon">✅</div><div class="s-val" id="d-usernames">-</div><div class="s-lbl">Band qilingan</div></div>
+      <div class="stat-box yellow"><div class="s-icon">💰</div><div class="s-val" id="d-revenue">-</div><div class="s-lbl">Daromad (so'm)</div></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">📈 Kunlik daromad (so'nggi 7 kun)</div>
+      <canvas id="revenue-chart" height="80"></canvas>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header">⏳ Tasdiqlash kutilayotgan to'lovlar</div>
+      <table>
+        <thead><tr><th>Foydalanuvchi</th><th>Vaqt</th><th>Amal</th></tr></thead>
+        <tbody id="pending-payments-table"><tr><td colspan="3" style="text-align:center;color:var(--muted);padding:30px;">Yuklanmoqda...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PAYMENTS -->
+  <div class="page" id="page-payments">
+    <div class="page-title"><span>To'lovlar</span> 💳</div>
+    <div class="table-card">
+      <div class="table-header">Barcha to'lov so'rovlari</div>
+      <table>
+        <thead><tr><th>ID</th><th>Foydalanuvchi</th><th>Summa</th><th>Holat</th><th>Vaqt</th><th>Amal</th></tr></thead>
+        <tbody id="all-payments-table"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px;">Yuklanmoqda...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- USERS -->
+  <div class="page" id="page-users">
+    <div class="page-title"><span>Foydalanuvchilar</span> 👥</div>
+    <div class="table-card">
+      <table>
+        <thead><tr><th>ID</th><th>Telegram</th><th>Balans</th><th>Akkaunt</th><th>Buyurtma</th><th>Amal</th></tr></thead>
+        <tbody id="users-table"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px;">Yuklanmoqda...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ORDERS -->
+  <div class="page" id="page-orders">
+    <div class="page-title"><span>Buyurtmalar</span> 📋</div>
+    <div class="table-card">
+      <table>
+        <thead><tr><th>ID</th><th>Foydalanuvchi</th><th>Kategoriya</th><th>Miqdor</th><th>Narx</th><th>Holat</th></tr></thead>
+        <tbody id="orders-table"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px;">Yuklanmoqda...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="page" id="page-stats">
+    <div class="page-title"><span>Statistika</span> 📈</div>
+    <div class="chart-card">
+      <div class="chart-title">Haftalik buyurtmalar</div>
+      <canvas id="orders-chart" height="100"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Foydalanuvchilar o'sishi</div>
+      <canvas id="users-chart" height="100"></canvas>
+    </div>
+  </div>
+</main>
+
+<!-- EDIT BALANCE MODAL -->
+<div class="modal-bg" id="edit-modal">
+  <div class="modal">
+    <h3>💰 Balans tahrirlash</h3>
+    <input type="number" id="edit-user-id" placeholder="Foydalanuvchi ID" readonly style="opacity:0.6;">
+    <input type="number" id="edit-amount" placeholder="Yangi balans miqdori (so'm)">
+    <div class="modal-btns">
+      <button class="btn btn-primary" onclick="saveBalance()">Saqlash</button>
+      <button class="btn" onclick="closeModal()" style="background:var(--card);">Bekor</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const ADMIN_TOKEN = localStorage.getItem('admin_token') || '';
+
+// ── AUTH CHECK ─────────────────────────────────
+async function checkAuth() {
+  const params = new URLSearchParams(location.search);
+  const token = params.get('token');
+  if (token) {
+    localStorage.setItem('admin_token', token);
+    history.replaceState({}, '', '/admin');
+  }
+  try {
+    const res = await fetch('/api/admin/check', {headers:{'X-Admin-Token': localStorage.getItem('admin_token')||''}});
+    if (res.ok) {
+      document.getElementById('login-screen').style.display = 'none';
+      loadDashboard();
+    }
+  } catch(e) {}
+}
+
+// ── NAVIGATION ─────────────────────────────────
+function goPage(name) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('nav a').forEach(a=>a.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  const loaders = {dashboard:loadDashboard, payments:loadPayments, users:loadUsers, orders:loadAdminOrders, stats:loadStats};
+  if (loaders[name]) loaders[name]();
+}
+
+const h = {'X-Admin-Token': localStorage.getItem('admin_token')||''};
+
+// ── DASHBOARD ──────────────────────────────────
+async function loadDashboard() {
+  try {
+    const res = await fetch('/api/admin/stats', {headers:h});
+    const d = await res.json();
+    document.getElementById('d-users').textContent = d.users||0;
+    document.getElementById('d-orders').textContent = d.orders||0;
+    document.getElementById('d-usernames').textContent = d.usernames||0;
+    document.getElementById('d-revenue').textContent = (d.revenue||0).toLocaleString();
+    drawChart('revenue-chart', d.daily_labels||[], d.daily_revenue||[], '#7c3aed', 'Daromad (so\'m)');
+  } catch(e){}
+  loadPendingPayments();
+}
+
+async function loadPendingPayments() {
+  try {
+    const res = await fetch('/api/admin/payments?status=pending', {headers:h});
+    const payments = await res.json();
+    const badge = document.getElementById('pending-badge');
+    if (payments.length) { badge.textContent=payments.length; badge.style.display='inline'; }
+    else { badge.style.display='none'; }
+    const tb = document.getElementById('pending-payments-table');
+    if (!payments.length) { tb.innerHTML='<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:20px;">Kutilayotgan to\'lovlar yo\'q</td></tr>'; return; }
+    tb.innerHTML = payments.map(p=>`
+      <tr>
+        <td>${p.telegram_id}<br><small style="color:var(--muted)">${p.photo_id?'📸 Chek bor':''}</small></td>
+        <td style="color:var(--muted);font-size:12px;">${new Date(p.created_at).toLocaleString('uz')}</td>
+        <td>
+          <button class="btn btn-approve" onclick="approvePayment(${p.id}, ${p.telegram_id})">✅ Tasdiqlash</button>
+          <button class="btn btn-reject" onclick="rejectPayment(${p.id}, ${p.telegram_id})">❌ Rad</button>
+        </td>
+      </tr>`).join('');
+  } catch(e){}
+}
+
+// ── PAYMENTS ───────────────────────────────────
+async function loadPayments() {
+  try {
+    const res = await fetch('/api/admin/payments', {headers:h});
+    const payments = await res.json();
+    const tb = document.getElementById('all-payments-table');
+    if (!payments.length) { tb.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px;">Yo\'q</td></tr>'; return; }
+    const statusMap = {pending:'b-pending',approved:'b-completed',rejected:''};
+    const statusTxt = {pending:'⏳ Kutilmoqda',approved:'✅ Tasdiqlandi',rejected:'❌ Rad etildi'};
+    tb.innerHTML = payments.map(p=>`
+      <tr>
+        <td>#${p.id}</td>
+        <td>${p.telegram_id}</td>
+        <td>${(p.amount||0).toLocaleString()} so'm</td>
+        <td><span class="badge ${statusMap[p.status]||''}">${statusTxt[p.status]||p.status}</span></td>
+        <td style="color:var(--muted);font-size:12px;">${new Date(p.created_at).toLocaleString('uz')}</td>
+        <td>${p.status==='pending'?`<button class="btn btn-approve" onclick="approvePayment(${p.id},${p.telegram_id},50000)">✅</button><button class="btn btn-reject" onclick="rejectPayment(${p.id},${p.telegram_id})">❌</button>`:'-'}</td>
+      </tr>`).join('');
+  } catch(e){}
+}
+
+async function approvePayment(id, userId, amount=50000) {
+  const amt = prompt('Qancha so\'m tasdiqlaysiz?', amount);
+  if (!amt) return;
+  try {
+    await fetch('/api/admin/payment/approve', {method:'POST',headers:{...h,'Content-Type':'application/json'},body:JSON.stringify({payment_id:id,telegram_id:userId,amount:parseInt(amt)})});
+    showToast('✅ To\'lov tasdiqlandi');
+    loadDashboard();
+  } catch(e){ showToast('Xato','error'); }
+}
+
+async function rejectPayment(id, userId) {
+  if (!confirm('Rad etishni tasdiqlaysizmi?')) return;
+  try {
+    await fetch('/api/admin/payment/reject', {method:'POST',headers:{...h,'Content-Type':'application/json'},body:JSON.stringify({payment_id:id,telegram_id:userId})});
+    showToast('To\'lov rad etildi');
+    loadDashboard();
+  } catch(e){ showToast('Xato','error'); }
+}
+
+// ── USERS ──────────────────────────────────────
+async function loadUsers() {
+  try {
+    const res = await fetch('/api/admin/users', {headers:h});
+    const users = await res.json();
+    const tb = document.getElementById('users-table');
+    if (!users.length) { tb.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px;">Yo\'q</td></tr>'; return; }
+    tb.innerHTML = users.map(u=>`
+      <tr>
+        <td>#${u.id}</td>
+        <td>${u.telegram_id}</td>
+        <td><b>${(u.balance||0).toLocaleString()}</b> so'm</td>
+        <td>${u.session_string?'<span style="color:var(--success)">✅ Ulangan</span>':'<span style="color:var(--muted)">❌ Yo\'q</span>'}</td>
+        <td>${u.order_count||0} ta</td>
+        <td><button class="btn btn-edit" onclick="openEditBalance(${u.id},${u.telegram_id},${u.balance||0})">✏️ Balans</button></td>
+      </tr>`).join('');
+  } catch(e){}
+}
+
+function openEditBalance(id, telegramId, currentBal) {
+  document.getElementById('edit-user-id').value = telegramId;
+  document.getElementById('edit-amount').value = currentBal;
+  document.getElementById('edit-modal').classList.add('open');
+}
+function closeModal() { document.getElementById('edit-modal').classList.remove('open'); }
+
+async function saveBalance() {
+  const tid = document.getElementById('edit-user-id').value;
+  const amt = parseInt(document.getElementById('edit-amount').value);
+  try {
+    await fetch('/api/admin/user/balance', {method:'POST',headers:{...h,'Content-Type':'application/json'},body:JSON.stringify({telegram_id:parseInt(tid),amount:amt})});
+    showToast('✅ Balans yangilandi');
+    closeModal(); loadUsers();
+  } catch(e){ showToast('Xato','error'); }
+}
+
+// ── ORDERS ─────────────────────────────────────
+async function loadAdminOrders() {
+  try {
+    const res = await fetch('/api/admin/orders', {headers:h});
+    const orders = await res.json();
+    const tb = document.getElementById('orders-table');
+    const smap = {pending:'b-pending',processing:'b-processing',completed:'b-completed'};
+    const stxt = {pending:'⏳ Kutilmoqda',processing:'🔄 Qidirilmoqda',completed:'✅ Bajarildi'};
+    tb.innerHTML = orders.map(o=>`
+      <tr>
+        <td>#${o.id}</td>
+        <td>${o.telegram_id}</td>
+        <td><b>${o.category}</b></td>
+        <td>${o.registered_count}/${o.quantity}</td>
+        <td>${(o.price||0).toLocaleString()} so'm</td>
+        <td><span class="badge ${smap[o.status]||''}">${stxt[o.status]||o.status}</span></td>
+      </tr>`).join('');
+  } catch(e){}
+}
+
+// ── STATS ──────────────────────────────────────
+async function loadStats() {
+  try {
+    const res = await fetch('/api/admin/stats', {headers:h});
+    const d = await res.json();
+    drawChart('orders-chart', d.daily_labels||[], d.daily_orders||[], '#06b6d4', 'Buyurtmalar');
+    drawChart('users-chart', d.daily_labels||[], d.daily_users||[], '#10b981', 'Yangi foydalanuvchilar');
+  } catch(e){}
+}
+
+// ── CHART ──────────────────────────────────────
+const charts = {};
+function drawChart(id, labels, data, color, label) {
+  if (charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id).getContext('2d');
+  charts[id] = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels,
+      datasets:[{label, data, borderColor:color, backgroundColor:color+'22',
+        tension:0.4, fill:true, pointBackgroundColor:color, pointRadius:4}]
+    },
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#64748b'}},
+        y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#64748b'}}
+      }
+    }
+  });
+}
+
+// ── TOAST ──────────────────────────────────────
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = `toast show ${type}`;
+  setTimeout(()=>t.classList.remove('show'), 3000);
+}
+
+checkAuth();
+</script>
+</body>
+</html>
