@@ -278,14 +278,25 @@
 
     <div class="form-group">
       <label>KATEGORIYA (so'z yoki "ism" kiriting)</label>
-      <input type="text" id="buy-category" placeholder="dastur, kino, ismlar, biznes...">
+      <input type="text" id="buy-category" placeholder="dastur, kino, ismlar, biznes..." oninput="calcSearchPrice()">
       <div style="color:var(--muted);font-size:11px;margin-top:6px;">
         💡 Bot shu so'zdan yuzlab premium variant yasab, bo'shlarini aniqlaydi
       </div>
     </div>
 
-    <button class="btn btn-primary" id="search-btn" onclick="startSearch()">
-      🔍 Qidirishni boshlash
+    <div class="form-group">
+      <label>NECHTA OLMOQCHISIZ? (1–10)</label>
+      <input type="number" id="buy-qty" min="1" max="10" value="1" oninput="calcSearchPrice()">
+    </div>
+
+    <div class="price-box" style="display:flex;justify-content:space-between;align-items:center;">
+      <div class="price-label">To'lanadigan summa</div>
+      <div class="price-val" id="search-total-price">5,000 so'm</div>
+    </div>
+    <div id="search-balance-warn" style="display:none;color:#f87171;font-size:12px;margin-top:8px;text-align:center;">❌ Balans yetarli emas!</div>
+
+    <button class="btn btn-primary" id="search-btn" onclick="startSearch()" style="margin-top:14px;">
+      💳 To'lab qidirish
     </button>
   </div>
 
@@ -294,21 +305,17 @@
     <div class="section-title">Bo'sh usernamelar</div>
     
     <div style="font-size:12px; color:var(--muted); margin-bottom:12px;">
-      <span id="search-status-text">⏳ Qidirilmoqda...</span> 
-      <br>O'zingizga yoqqanlarini tanlang (narxi: <b><span id="display-price">5000</span> so'm</b>/dona)
+      <span id="search-status-text">⏳ Qidirilmoqda...</span>
+      <br><span id="search-must-select-hint"></span>
     </div>
 
-    <div id="results-list" style="max-height: 250px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; margin-bottom: 16px;">
+    <div id="results-list" style="max-height: 280px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; margin-bottom: 16px;">
       <!-- Checkboxlar shu yerga tushadi -->
     </div>
 
     <div class="price-box" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-      <div class="price-label">Tanlandi: <span id="selected-count">0</span> ta</div>
-      <div class="price-val" id="selected-price">0 so'm</div>
-    </div>
-    
-    <div id="balance-warning" style="display:none;color:#f87171;font-size:13px;margin-bottom:12px;text-align:center;">
-      ❌ Balans yetarli emas. Avval to'ldiring!
+      <div class="price-label">Tanlandi: <span id="selected-count">0</span> / <span id="paid-count">0</span> ta</div>
+      <div class="price-val" style="color:var(--success);">Pul to'langan ✅</div>
     </div>
 
     <button class="btn btn-primary" id="buy-btn" onclick="buySelected()" disabled>
@@ -678,39 +685,64 @@ async function loadMonitors() {
 
 // ── INTERACTIVE SEARCH & BUY ──────────────────
 let currentSearchId = null;
+let paidQty = 0;           // Oldindan to'langan miqdor
 let searchPollInterval = null;
 let selectedUsernames = new Set();
 const PRICE_PER_ITEM = 5000;
 
+function calcSearchPrice() {
+  const qty = Math.min(10, Math.max(1, parseInt(document.getElementById('buy-qty').value) || 1));
+  const total = qty * PRICE_PER_ITEM;
+  document.getElementById('search-total-price').textContent = total.toLocaleString() + " so'm";
+  const warn = document.getElementById('search-balance-warn');
+  warn.style.display = (userData.balance || 0) < total ? 'block' : 'none';
+}
+
 async function startSearch() {
   const cat = document.getElementById('buy-category').value.trim();
+  const qty = Math.min(10, Math.max(1, parseInt(document.getElementById('buy-qty').value) || 1));
   if (!cat) { showToast('Kategoriya kiriting!','error'); return; }
   if (!userData.session_string) { showToast('Avval akkauntni ulang!','error'); goPage('account'); return; }
-  
+
+  const totalPrice = qty * PRICE_PER_ITEM;
+  if ((userData.balance || 0) < totalPrice) {
+    showToast('Balans yetarli emas!', 'error');
+    goPage('balance');
+    return;
+  }
+
   const btn = document.getElementById('search-btn');
-  btn.innerHTML = '<div class="spinner"></div> Qidirilmoqda...';
+  btn.innerHTML = '<div class="spinner"></div> To\'lanmoqda...';
   btn.disabled = true;
-  
+
   try {
     const res = await fetch(`${API}/api/search/start`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({init_data: tg.initData, category:cat})
+      body: JSON.stringify({init_data: tg.initData, category: cat, quantity: qty})
     });
     const d = await res.json();
     if (d.ok) {
+      paidQty = qty;
       currentSearchId = d.search_id;
+      await loadUserData(); // Balansni yangilash
+
       document.getElementById('search-results-card').style.display = 'block';
       document.getElementById('results-list').innerHTML = '';
+      document.getElementById('paid-count').textContent = paidQty;
+      document.getElementById('search-must-select-hint').innerHTML =
+        `Siz <b>${paidQty} ta</b> username uchun to'ladingiz. Xuddi shuncha tanlashingiz kerak!`;
       selectedUsernames.clear();
       updateSelectionUI();
-      
+
       if(searchPollInterval) clearInterval(searchPollInterval);
       searchPollInterval = setInterval(pollSearchResults, 2000);
-      showToast('Qidiruv boshlandi!','success');
-    } else { showToast(d.error||'Xato yuz berdi','error'); }
-  } catch(e) { showToast('Xato yuz berdi','error'); }
-  
-  btn.innerHTML = '🔍 Qidirishni boshlash';
+      showToast(`✅ ${totalPrice.toLocaleString()} so'm yechildi!`, 'success');
+    } else {
+      showToast(d.error || 'Xato yuz berdi', 'error');
+    }
+  } catch(e) { showToast('Xato yuz berdi', 'error'); }
+
+  btn.innerHTML = '💳 To\'lab qidirish';
   btn.disabled = false;
 }
 
@@ -738,24 +770,25 @@ function renderSearchResults(results) {
     results.forEach(r => {
       const isChecked = selectedUsernames.has(r.username) ? 'checked' : '';
       const isClaimed = r.status === 'claimed';
+      // Full seleced olganda boshqalarni disable qilish
+      const isMaxReached = selectedUsernames.size >= paidQty && !selectedUsernames.has(r.username);
+      const disabled = isClaimed || isMaxReached;
       html += `
-        <label style="display:flex; align-items:center; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.05); cursor:${isClaimed?'not-allowed':'pointer'}; opacity:${isClaimed?'0.5':'1'}">
-          <input type="checkbox" value="${r.username}" onchange="toggleSelection(this)" ${isChecked} ${isClaimed?'disabled':''} style="margin-right:12px; width:18px; height:18px; accent-color:var(--primary);">
+        <label style="display:flex; align-items:center; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.05); cursor:${disabled?'not-allowed':'pointer'}; opacity:${disabled?'0.4':'1'}">
+          <input type="checkbox" value="${r.username}" onchange="toggleSelection(this)" ${isChecked} ${disabled?'disabled':''} style="margin-right:12px; width:18px; height:18px; accent-color:var(--primary);">
           <span style="font-weight:600; font-size:14px;">@${r.username}</span>
           ${isClaimed ? '<span style="margin-left:auto; font-size:12px; color:var(--success);">✅ Band qilindi</span>' : ''}
         </label>
       `;
     });
   }
-  // Only update innerHTML if new items or state changed to avoid unchecking
-  // But for simplicity, we re-render entirely (checkbox state is preserved via selectedUsernames)
   list.innerHTML = html;
 }
 
 function toggleSelection(checkbox) {
   if(checkbox.checked) {
-    if(selectedUsernames.size >= 10) {
-      showToast('Maksimal 10 ta tanlash mumkin!', 'error');
+    if(selectedUsernames.size >= paidQty) {
+      showToast(`Siz faqat ${paidQty} ta tanlay olasiz!`, 'error');
       checkbox.checked = false;
       return;
     }
@@ -764,28 +797,25 @@ function toggleSelection(checkbox) {
     selectedUsernames.delete(checkbox.value);
   }
   updateSelectionUI();
+  // Limitga yetganda boshqa checkboxlarni qayta render qilish (disable uchun)
+  pollSearchResults();
 }
 
 function updateSelectionUI() {
   const count = selectedUsernames.size;
-  const price = count * PRICE_PER_ITEM;
   document.getElementById('selected-count').textContent = count;
-  document.getElementById('selected-price').textContent = price.toLocaleString() + " so'm";
-  
+
   const buyBtn = document.getElementById('buy-btn');
-  const warn = document.getElementById('balance-warning');
-  
-  if(count > 0) {
+  // Foydalanuvchi to'lagan miqdorcha tanlasa aktiv bo'ladi
+  if (count > 0 && count === paidQty) {
     buyBtn.disabled = false;
-    if((userData.balance || 0) < price) {
-      warn.style.display = 'block';
-      buyBtn.disabled = true;
-    } else {
-      warn.style.display = 'none';
-    }
+    buyBtn.innerHTML = `✅ ${count} ta nomni band qilish`;
+  } else if (count > 0) {
+    buyBtn.disabled = true;
+    buyBtn.innerHTML = `✅ Yana ${paidQty - count} ta tanlang...`;
   } else {
     buyBtn.disabled = true;
-    warn.style.display = 'none';
+    buyBtn.innerHTML = `✅ Tanlanganlarni band qilish`;
   }
 }
 

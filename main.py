@@ -106,6 +106,7 @@ async def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 telegram_id INTEGER,
                 category TEXT,
+                paid_qty INTEGER DEFAULT 1,
                 status TEXT DEFAULT 'searching',
                 created_at REAL DEFAULT (strftime('%s','now'))
             )
@@ -762,21 +763,33 @@ async def api_search_start(request: Request):
         raise HTTPException(403)
     tid = user['id']
     cat = data.get('category','').strip()
-    
+    qty = int(data.get('quantity', 1))
+    qty = max(1, min(10, qty))  # 1-10 oralig'ida cheklash
+
     if not cat:
         return {"ok": False, "error": "Kategoriya kiritilmadi"}
-        
+
     row = await get_user(tid)
     if not row or not row['session_string']:
         return {"ok": False, "error": "Akkaunt ulanmagan"}
-        
+
+    total_price = qty * 5000
+    if (row['balance'] or 0) < total_price:
+        return {"ok": False, "error": f"Balans yetarli emas ({total_price:,} so'm kerak)"}
+
+    # Oldindan pulni yechib olamiz
+    await deduct_balance(tid, total_price)
+
     async with aiosqlite.connect(DB_PATH) as db:
-        cur = await db.execute("INSERT INTO search_tasks (telegram_id, category) VALUES (?, ?)", (tid, cat))
+        cur = await db.execute(
+            "INSERT INTO search_tasks (telegram_id, category, paid_qty) VALUES (?, ?, ?)",
+            (tid, cat, qty)
+        )
         search_id = cur.lastrowid
         await db.commit()
-        
+
     asyncio.create_task(search_sniper(tid, search_id, cat))
-    return {"ok": True, "search_id": search_id}
+    return {"ok": True, "search_id": search_id, "paid_qty": qty, "charged": total_price}
 
 @app.get("/api/search/results")
 async def api_search_results(search_id: int, init_data: str = ""):
