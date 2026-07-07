@@ -150,50 +150,59 @@ def generate_usernames(base_word: str, limit: int = 200) -> list:
                 "murod", "oybek", "sanjar", "bobur", "akbar", "asilbek", "islom", "abdulloh", "muhammad",
                 "gulnoza", "shahnoza", "dilnoza", "feruza", "nilufar", "laylo", "shirin", "guzal", "umida",
                 "aziz", "bek", "shox", "ali", "vali", "hasan", "husan", "fotima", "zuhra", "behruz"]
+    
     uz_surnames = ["olimov", "karimov", "abdullayev", "rahimov", "umarov", "usmonov", "aliyev", 
                    "qodirov", "yuldashev", "xusanov", "olimova", "karimova", "abdullayeva", "rahimova",
                    "valiyev", "valiyeva", "tolipov", "qosimov", "jumayev"]
 
-    suffixes = ["chi", "lar", "lash", "im", "iy", "uz", "go",
-                "uzb", "pro", "bot", "er", "jon", "bek", "off",
-                "official", "real", "hub", "zone", "net", "city",
-                "xon", "boy", "mirza", "xoja", "zoda", "ov", "ova", "yev", "yeva"]
-    prefixes = ["uz", "the", "my", "pro", "best", "top", "super",
-                "ultra", "smart", "mega", "sayyid", "abu", "mir"]
+    # Premium qisqa qo'shimchalar
+    short_suf = ["uz", "go", "x", "s", "bot", "up", "me", "tm", "io", "ai", "ru", "ok", "hub", "pro", "vip"]
+    short_pref = ["i", "e", "v", "x", "uz", "my", "the", "pro", "top"]
+    
+    # Ismlar uchun xos qo'shimchalar
+    name_suf_all = ["bek", "jon", "xon", "boy", "zoda", "mirza", "ov", "ova", "yev", "yeva"]
     
     results = set()
     bases = [base]
     
+    is_name_cat = False
     if base in ["ism", "ismlar", "name", "qiz", "qizlar", "bola", "bolalar"]:
         bases.extend(uz_names)
+        is_name_cat = True
     elif base in ["familiya", "familiyalar", "surname"]:
         bases.extend(uz_surnames)
+        is_name_cat = True
     elif base in ["uzb", "odam", "inson"]:
         bases.extend(uz_names)
         bases.extend(uz_surnames)
-        for _ in range(20):
-            bases.append(random.choice(uz_names) + random.choice(uz_surnames))
-            bases.append(random.choice(uz_names) + "_" + random.choice(uz_surnames))
+        is_name_cat = True
 
     for b in bases:
         results.add(b)
-        for suf in suffixes:
-            # Qat'iy tekshiruv: ism yoki familiya qo'shimchasi allaqachon bo'lsa, ikkinchisini qo'shmaslik
-            uz_suffixes = ["ov", "ova", "yev", "yeva", "boy", "xon", "bek", "jon", "zoda", "mirza", "xoja", "chi", "lar"]
-            if any(b.endswith(x) for x in uz_suffixes) and suf in uz_suffixes:
-                continue
-            if b.endswith(suf):
-                continue
+        
+        # Agar bu ism/familiya bo'lsa, maxsus o'zbekcha qo'shimchalar
+        if is_name_cat or b in uz_names or b in uz_surnames:
+            for suf in name_suf_all:
+                if any(b.endswith(x) for x in name_suf_all):
+                    continue # Takror qo'shilmasligi uchun qat'iy blok
+                results.add(f"{b}{suf}")
+        
+        # Umumiy premium qisqa qo'shimchalar
+        for suf in short_suf:
             results.add(f"{b}{suf}")
-        for pref in prefixes:
+            results.add(f"{b}_{suf}")
+        for pref in short_pref:
             results.add(f"{pref}{b}")
             results.add(f"{pref}_{b}")
-        if len(bases) < 10: # Faqat oddiy so'z uchun chuqur kombinatsiya
-            for suf in suffixes:
-                for pref in prefixes[:4]:
-                    uz_suffixes = ["ov", "ova", "yev", "yeva", "boy", "xon", "bek", "jon", "zoda", "mirza", "xoja", "chi", "lar"]
-                    if not (any(b.endswith(x) for x in uz_suffixes) and suf in uz_suffixes) and not b.endswith(suf):
-                        results.add(f"{pref}{b}{suf}")
+            
+        # Unli harflarni tushirib qisqartirish (masalan: biznes -> bznsuz)
+        if len(b) > 4:
+            vowels = "aeiouo'a"
+            no_vowels = "".join(c for c in b if c not in vowels)
+            if len(no_vowels) >= 4:
+                results.add(no_vowels)
+                results.add(f"{no_vowels}uz")
+                results.add(f"{no_vowels}bot")
 
     # Faqat 5+ harflilarni va maximal 32 ta harflilarni olamiz
     valid = [u for u in results if 5 <= len(u) <= 32]
