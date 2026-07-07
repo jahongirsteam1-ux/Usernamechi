@@ -325,28 +325,41 @@
     <div class="sub">so'm</div>
   </div>
 
-  <div class="card">
+  <div class="card" id="topup-form-wrap">
+    <div class="section-title">Balansni to'ldirish</div>
+    <div class="form-group">
+      <label>QANCHA TO'LDIRMOQCHISIZ?</label>
+      <input type="number" id="topup-amount" placeholder="50000" min="1000">
+      <div style="color:var(--muted);font-size:11px;margin-top:6px;">
+        💡 Minimal summa: 1,000 so'm
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="requestTopup()">
+      Karta raqamini olish
+    </button>
+  </div>
+
+  <div class="card" id="topup-pay-wrap" style="display:none; text-align:center;">
     <div class="section-title">Karta raqamiga to'lang</div>
-    <div style="background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:16px;text-align:center;margin-bottom:16px;">
-      <div style="color:var(--muted);font-size:12px;margin-bottom:6px;">To'lov kartasi</div>
-      <div id="card-number" style="font-size:20px;font-weight:700;letter-spacing:2px;">8600 XXXX XXXX XXXX</div>
+    
+    <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:12px;margin-bottom:16px;color:#f87171;font-size:13px;font-weight:600;">
+      DIQQAT! Faqat quyidagi summani o'tkazing, aks holda tasdiqlanmaydi!
+    </div>
+
+    <div style="margin-bottom:8px;color:var(--muted);font-size:12px;">O'tkaziladigan summa:</div>
+    <div style="font-size:32px;font-weight:800;color:var(--success);margin-bottom:20px;" id="pay-exact-amount">0 so'm</div>
+
+    <div style="background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:16px;margin-bottom:16px;">
+      <div style="color:var(--muted);font-size:12px;margin-bottom:6px;">To'lov kartasi:</div>
+      <div id="card-number" style="font-size:20px;font-weight:700;letter-spacing:2px;">Yuklanmoqda...</div>
       <button onclick="copyCard()" style="background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;margin-top:8px;">📋 Nusxalash</button>
     </div>
 
-    <div class="upload-zone" onclick="document.getElementById('photo-input').click()" id="upload-zone">
-      <div id="upload-preview">
-        <div class="upload-icon">📸</div>
-        <div class="upload-text">To'lov chekini (screenshot) yuklang</div>
-      </div>
+    <div style="color:var(--muted);font-size:12px;">
+      ✅ To'lov qilishingiz bilan balans avtomat to'ldiriladi. Izoh yozish yoki chek tashlash shart emas.
     </div>
-    <input type="file" id="photo-input" accept="image/*" onchange="previewPhoto(event)">
-
-    <button class="btn btn-success" onclick="sendReceipt()">
-      📤 Chekni yuborish
-    </button>
-    <div style="color:var(--muted);font-size:12px;text-align:center;">
-      Admin 5–15 daqiqa ichida tasdiqlab, balansingizni to'ldiradi
-    </div>
+    
+    <button class="btn btn-outline" style="margin-top:16px;" onclick="cancelTopup()">Bekor qilish</button>
   </div>
 </div>
 
@@ -552,33 +565,30 @@ async function submitOrder() {
   btn.disabled = false;
 }
 
-// ── RECEIPT ───────────────────────────────────
-function previewPhoto(e) {
-  photoFile = e.target.files[0];
-  if (!photoFile) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    document.getElementById('upload-preview').innerHTML = `<img src="${ev.target.result}" alt="chek">`;
-  };
-  reader.readAsDataURL(photoFile);
-}
-
-async function sendReceipt() {
-  if (!photoFile) { showToast('Avval chek rasmini tanlang','error'); return; }
-  const fd = new FormData();
-  fd.append('photo', photoFile);
-  fd.append('init_data', tg.initData);
+// ── TOPUP ───────────────────────────────────
+async function requestTopup() {
+  const amtInput = document.getElementById('topup-amount').value;
+  const amt = parseInt(amtInput);
+  if (!amt || amt < 1000) { showToast('Kamida 1,000 so\'m kiriting', 'error'); return; }
+  
   try {
-    const res = await fetch(`${API}/api/receipt`, {method:'POST', body:fd});
+    const res = await fetch(`${API}/api/topup/request`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({init_data: tg.initData, amount: amt})
+    });
     const d = await res.json();
     if (d.ok) {
-      showToast('✅ Chek yuborildi! Admin tasdiqlashi kutilmoqda','success');
-      photoFile = null;
-      document.getElementById('upload-preview').innerHTML = `
-        <div class="upload-icon">📸</div>
-        <div class="upload-text">To'lov chekini (screenshot) yuklang</div>`;
+      document.getElementById('topup-form-wrap').style.display = 'none';
+      document.getElementById('topup-pay-wrap').style.display = 'block';
+      document.getElementById('pay-exact-amount').textContent = d.amount.toLocaleString() + ' so\'m';
     } else { showToast(d.error||'Xato','error'); }
-  } catch(e) { showToast('Xato yuz berdi','error'); }
+  } catch(e) { showToast('Tarmoq xatosi','error'); }
+}
+
+function cancelTopup() {
+  document.getElementById('topup-form-wrap').style.display = 'block';
+  document.getElementById('topup-pay-wrap').style.display = 'none';
+  document.getElementById('topup-amount').value = '';
 }
 
 function copyCard() {

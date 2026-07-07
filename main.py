@@ -37,13 +37,11 @@ load_dotenv()
 # ─── SOZLAMALAR ──────────────────────────────
 BOT_TOKEN     = os.getenv("BOT_TOKEN", "")
 ADMIN_CHANNEL = int(os.getenv("ADMIN_CHANNEL", "0"))
-PAYMENT_CARD  = os.getenv("PAYMENT_CARD", "")
 API_ID        = int(os.getenv("API_ID", "0"))
 API_HASH      = os.getenv("API_HASH", "")
 ADMIN_IDS     = [int(x) for x in os.getenv("ADMIN_IDS", "0").split(",") if x.strip()]
 DB_PATH       = "saas.db"
 WEB_URL       = os.getenv("WEB_HOST", "http://localhost:8000")
-USERNAME_PRICE = 5000  # 1 ta username narxi (so'm)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -87,8 +85,39 @@ async def init_db():
                 created_at REAL DEFAULT (strftime('%s','now'))
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS topups (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                telegram_id INTEGER,
+                expected_amount INTEGER,
+                status TEXT DEFAULT 'pending',
+                created_at REAL DEFAULT (strftime('%s','now'))
+            )
+        """)
+        await db.commit()
+        # Sozlamalarni kiritish
+        await db.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('payment_card', '8600123456789012')")
+        await db.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('payment_channel_id', '0')")
+        await db.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('username_price', '5000')")
         await db.commit()
     logger.info("✅ Baza tayyor")
+
+async def get_setting(key, default=None):
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT value FROM settings WHERE key=?", (key,)) as cur:
+            row = await cur.fetchone()
+            return row[0] if row else default
+
+async def set_setting(key, value):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=?", (key, str(value), str(value)))
+        await db.commit()
 
 async def get_user(telegram_id):
     async with aiosqlite.connect(DB_PATH) as db:
@@ -233,10 +262,12 @@ async def buy_username_cmd(message: Message):
         )
         return
     user_states[message.from_user.id] = {"step": "wait_category"}
+    price = int(await get_setting("username_price", 5000))
     await message.answer(
-        "🎯 <b>Username kategoriyasini kiriting</b>\n\n"
-        "Misol: <code>dastur</code>, <code>kino</code>, <code>biznes</code>, <code>savdo</code>\n\n"
-        "Bot shu so'z asosida ko'plab variantlar yasab, bo'shlarini band qiladi.",
+        f"🎯 <b>Username kategoriyasini kiriting</b>\n\n"
+        f"Misol: <code>dastur</code>, <code>kino</code>, <code>biznes</code>, <code>savdo</code>\n\n"
+        f"Bot shu so'z asosida ko'plab variantlar yasab, bo'shlarini band qiladi.\n\n"
+        f"💵 1 ta username narxi: <b>{price:,} so'm</b>",
         parse_mode="HTML"
     )
 
@@ -381,20 +412,6 @@ async def cancel_order(call: CallbackQuery):
     user_states.pop(call.from_user.id, None)
     await call.message.edit_text("❌ Buyurtma bekor qilindi.")
 
-@router.callback_query(F.data.startswith("order_"))
-async def confirm_order(call: CallbackQuery):
-    parts = call.data.split("_")
-    cat   = parts[1]
-    qty   = int(parts[2])
-    total = int(parts[3])
-    user_id = call.from_user.id
-
-    user = await get_user(user_id)
-    if not user or user["balance"] < total:
-        await call.answer("❌ Balans yetarli emas!", show_alert=True)
-        return
-
-    await deduct_balance(user_id, total)
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
             "INSERT INTO orders (telegram_id, category, quantity, price, status) VALUES (?,?,?,?,'processing')",
@@ -561,7 +578,32 @@ async def api_user(init_data: str = ""):
 
 @app.get("/api/card")
 async def api_card():
-    return {"card": PAYMENT_CARD}
+    card = await get_setting("payment_card", "")
+    return {"card": card}
+
+@app.post("/api/topup/request")
+async def api_topup_request(request: Request):
+    data = await request.json()
+    user = verify_init_data(data.get('init_data',''))
+    if not user:
+        raise HTTPException(403)
+    tid = user['id']
+    amount = int(data.get('amount', 0))
+    if amount < 1000:
+        return {"ok": False, "error": "Eng kamida 1,000 so'm"}
+    
+    # Generate unique amount (add 1 to 99 tiyin)
+    async with aiosqlite.connect(DB_PATH) as db:
+        for _ in range(100):
+            unique_amount = amount + random.randint(1, 99)
+            async with db.execute("SELECT id FROM topups WHERE expected_amount=? AND status='pending'", (unique_amount,)) as c:
+                if not await c.fetchone():
+                    # Unikal summa topildi
+                    await db.execute("INSERT INTO topups (telegram_id, expected_amount) VALUES (?, ?)", (tid, unique_amount))
+                    await db.commit()
+                    return {"ok": True, "amount": unique_amount}
+    
+    return {"ok": False, "error": "Bandlik yuqori, keyinroq urining"}
 
 @app.get("/api/orders")
 async def api_orders(init_data: str = ""):
@@ -655,6 +697,32 @@ async def api_disconnect(request: Request):
     if not user:
         raise HTTPException(403)
     await save_session(user['id'], None)
+    return {"ok": True}
+
+@app.get("/api/admin/settings")
+async def api_admin_settings_get(x_admin_token: str = Header(default="")):
+    for aid in ADMIN_IDS:
+        if get_admin_token(aid) == x_admin_token: break
+    else: raise HTTPException(403)
+    
+    card = await get_setting("payment_card", "")
+    channel = await get_setting("payment_channel_id", "")
+    price = await get_setting("username_price", "5000")
+    return {"payment_card": card, "payment_channel_id": channel, "username_price": price}
+
+@app.post("/api/admin/settings")
+async def api_admin_settings_set(request: Request, x_admin_token: str = Header(default="")):
+    for aid in ADMIN_IDS:
+        if get_admin_token(aid) == x_admin_token: break
+    else: raise HTTPException(403)
+    
+    data = await request.json()
+    if 'payment_card' in data:
+        await set_setting("payment_card", data['payment_card'])
+    if 'payment_channel_id' in data:
+        await set_setting("payment_channel_id", data['payment_channel_id'])
+    if 'username_price' in data:
+        await set_setting("username_price", data['username_price'])
     return {"ok": True}
 
 # ── Admin API ──────────────────────────────────

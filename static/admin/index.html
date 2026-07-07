@@ -214,6 +214,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       Statistika
     </a>
+    <a onclick="goPage('settings')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Sozlamalar
+    </a>
   </nav>
 </aside>
 
@@ -289,6 +293,26 @@
       <canvas id="users-chart" height="100"></canvas>
     </div>
   </div>
+
+  <!-- SETTINGS -->
+  <div class="page" id="page-settings">
+    <div class="page-title"><span>Sozlamalar</span> ⚙️</div>
+    <div class="table-card" style="padding:24px;">
+      <div style="margin-bottom:20px;">
+        <label style="display:block;margin-bottom:8px;color:var(--muted);font-size:13px;font-weight:600;">💳 Karta raqami (To'lov uchun)</label>
+        <input type="text" id="set-card" style="width:100%;max-width:400px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);outline:none;">
+      </div>
+      <div style="margin-bottom:20px;">
+        <label style="display:block;margin-bottom:8px;color:var(--muted);font-size:13px;font-weight:600;">📢 To'lov kanali ID (Masalan: -100123...)</label>
+        <input type="text" id="set-channel" style="width:100%;max-width:400px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);outline:none;">
+      </div>
+      <div style="margin-bottom:24px;">
+        <label style="display:block;margin-bottom:8px;color:var(--muted);font-size:13px;font-weight:600;">💰 1 ta username narxi (so'm)</label>
+        <input type="number" id="set-price" style="width:100%;max-width:400px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);outline:none;">
+      </div>
+      <button class="btn btn-primary" onclick="saveSettings()" style="padding:12px 24px;">Saqlash</button>
+    </div>
+  </div>
 </main>
 
 <!-- EDIT BALANCE MODAL -->
@@ -332,7 +356,7 @@ function goPage(name) {
   document.querySelectorAll('nav a').forEach(a=>a.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
   event.currentTarget.classList.add('active');
-  const loaders = {dashboard:loadDashboard, payments:loadPayments, users:loadUsers, orders:loadAdminOrders, stats:loadStats};
+  const loaders = {dashboard:loadDashboard, payments:loadPayments, users:loadUsers, orders:loadAdminOrders, stats:loadStats, settings:loadSettings};
   if (loaders[name]) loaders[name]();
 }
 
@@ -477,6 +501,32 @@ async function loadStats() {
     drawChart('orders-chart', d.daily_labels||[], d.daily_orders||[], '#06b6d4', 'Buyurtmalar');
     drawChart('users-chart', d.daily_labels||[], d.daily_users||[], '#10b981', 'Yangi foydalanuvchilar');
   } catch(e){}
+}
+
+// ── SETTINGS ───────────────────────────────────
+async function loadSettings() {
+  try {
+    const res = await fetch('/api/admin/settings', {headers:h});
+    const d = await res.json();
+    document.getElementById('set-card').value = d.payment_card || '';
+    document.getElementById('set-channel').value = d.payment_channel_id || '';
+    document.getElementById('set-price').value = d.username_price || '5000';
+  } catch(e){}
+}
+
+async function saveSettings() {
+  const data = {
+    payment_card: document.getElementById('set-card').value,
+    payment_channel_id: document.getElementById('set-channel').value,
+    username_price: document.getElementById('set-price').value
+  };
+  try {
+    await fetch('/api/admin/settings', {
+      method: 'POST', headers: {...h, 'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    });
+    showToast('✅ Sozlamalar saqlandi');
+  } catch(e){ showToast('Xato yuz berdi','error'); }
 }
 
 // ── CHART ──────────────────────────────────────
