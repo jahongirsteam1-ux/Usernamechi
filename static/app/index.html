@@ -268,51 +268,48 @@
     </div>
   </div>
 
+  <!-- USERNAME SOTIB OLISH FORMASI -->
   <div class="card">
-    <div style="color:var(--muted);font-size:13px;margin-bottom:12px;">Tezkor amallar</div>
-    <button class="btn btn-primary" onclick="goPage('buy')">
-      <span>🛒</span> Username sotib olish
-    </button>
-    <button class="btn btn-outline" onclick="goPage('balance')">
-      <span>💳</span> Balansni to'ldirish
+    <div class="section-title"><span>Username</span> sotib olish</div>
+
+    <div class="card" id="no-session-warn" style="display:none;background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.3);padding:12px;margin-bottom:12px;">
+      ⚠️ Avval <b>Akkaunt</b> bo'limiga o'tib, Telegram akkauntingizni ulang!
+    </div>
+
+    <div class="form-group">
+      <label>KATEGORIYA (so'z kiriting)</label>
+      <input type="text" id="buy-category" placeholder="dastur, kino, biznes, savdo..." oninput="updatePrice()">
+      <div style="color:var(--muted);font-size:11px;margin-top:6px;">
+        💡 Bot shu so'zdan yuzlab variant yasab, bo'shlarini band qiladi
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>SONI (1–10 ta)</label>
+      <input type="number" id="buy-qty" min="1" max="10" value="1" oninput="updatePrice()">
+    </div>
+
+    <div class="price-box">
+      <div class="price-label">Jami narx</div>
+      <div class="price-val" id="buy-price">5,000 so'm</div>
+    </div>
+
+    <div id="balance-warning" style="display:none;color:#f87171;font-size:13px;margin-bottom:12px;text-align:center;">
+      ❌ Balans yetarli emas. Avval to'ldiring!
+    </div>
+
+    <button class="btn btn-primary" id="buy-btn" onclick="submitOrder()">
+      ✅ Buyurtma berish
     </button>
   </div>
-</div>
 
-<!-- BUY PAGE -->
-<div class="page" id="page-buy">
-  <div class="page-header"><span>Username</span> sotib olish</div>
-
-  <div class="card" id="no-session-warn" style="display:none;background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.3);">
-    ⚠️ Avval akkauntingizni ulang!
-    <br><small style="color:var(--muted)">Pastdagi "Akkaunt" bo'limiga o'ting.</small>
-  </div>
-
-  <div class="form-group">
-    <label>KATEGORIYA (so'z kiriting)</label>
-    <input type="text" id="buy-category" placeholder="dastur, kino, biznes, savdo..." oninput="updatePrice()">
-    <div style="color:var(--muted);font-size:11px;margin-top:6px;">
-      💡 Bot shu so'zdan yuzlab variant yasab, bo'shlarini band qiladi
+  <!-- SO'NGGI BUYURTMALAR JADVALI -->
+  <div class="card" style="padding:0;overflow:hidden;">
+    <div style="padding:16px 20px 12px;font-size:15px;font-weight:700;">So'nggi buyurtmalar</div>
+    <div id="home-orders-table">
+      <div style="text-align:center;padding:24px;color:var(--muted);font-size:13px;">📭 Buyurtmalar yo'q</div>
     </div>
   </div>
-
-  <div class="form-group">
-    <label>SONI (1–10 ta)</label>
-    <input type="number" id="buy-qty" min="1" max="10" value="1" oninput="updatePrice()">
-  </div>
-
-  <div class="price-box">
-    <div class="price-label">Jami narx</div>
-    <div class="price-val" id="buy-price">5,000 so'm</div>
-  </div>
-
-  <div id="balance-warning" style="display:none;color:#f87171;font-size:13px;margin-bottom:12px;text-align:center;">
-    ❌ Balans yetarli emas. Avval to'ldiring!
-  </div>
-
-  <button class="btn btn-primary" id="buy-btn" onclick="submitOrder()">
-    ✅ Buyurtma berish
-  </button>
 </div>
 
 <!-- BALANCE PAGE -->
@@ -378,6 +375,16 @@
 <div class="page" id="page-account">
   <div class="page-header">🔗 <span>Akkaunt</span></div>
 
+  <!-- Akkaunt ulash nima uchun kerak -->
+  <div style="background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(6,182,212,0.1));border:1px solid rgba(124,58,237,0.3);border-radius:16px;padding:16px;margin-bottom:16px;">
+    <div style="font-size:15px;font-weight:700;margin-bottom:8px;">🤔 Nima uchun akkaunt ulash kerak?</div>
+    <div style="color:var(--muted);font-size:13px;line-height:1.7;">
+      Bot username qidirish jarayonida topilgan bo'sh usernamelarni <b>sizning akkauntingiz nomidan</b> band qiladi. Buning uchun sizning Telegram akkauntingizga kirish kerak bo'ladi.
+      <br><br>
+      🔒 <b>Xavfsizlik:</b> Parolingiz saqlanmaydi. Faqat maxsus "session" kaliti saqlanib, u orqali faqat username band qilish amali bajariladi.
+    </div>
+  </div>
+
   <div class="account-status" id="account-status">
     <div class="status-dot disconnected" id="status-dot"></div>
     <div class="account-info">
@@ -432,10 +439,6 @@
   <button class="active" id="nav-home" onclick="goPage('home')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
     Bosh
-  </button>
-  <button id="nav-buy" onclick="goPage('buy')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-    Sotib olish
   </button>
   <button id="nav-balance" onclick="goPage('balance')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
@@ -512,25 +515,51 @@ async function loadOrders() {
   try {
     const res = await fetch(`${API}/api/orders?init_data=${encodeURIComponent(tg.initData)}`);
     const orders = await res.json();
+
+    // Buyurtmalar sahifasi
     const el = document.getElementById('orders-list');
     if (!orders.length) {
       el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted);">
         <div style="font-size:48px;margin-bottom:12px;">📭</div>Buyurtmalar yo'q</div>`;
-      return;
+    } else {
+      el.innerHTML = orders.map(o => {
+        const statusMap = {pending:'badge-pending',processing:'badge-processing',completed:'badge-completed'};
+        const statusTxt = {pending:'⏳ Kutilmoqda',processing:'🔄 Qidirilmoqda',completed:'✅ Bajarildi'};
+        const chips = (o.usernames || []).map(u => `<span class="username-chip">@${u}</span>`).join('');
+        return `<div class="order-item">
+          <div class="order-top">
+            <div class="order-cat">📂 ${o.category}</div>
+            <span class="badge ${statusMap[o.status]||'badge-pending'}">${statusTxt[o.status]||o.status}</span>
+          </div>
+          <div class="order-meta">${o.registered_count}/${o.quantity} ta band • ${(o.price||0).toLocaleString()} so'm</div>
+          ${chips ? `<div class="usernames-list">${chips}</div>` : ''}
+        </div>`;
+      }).join('');
     }
-    el.innerHTML = orders.map(o => {
-      const statusMap = {pending:'badge-pending',processing:'badge-processing',completed:'badge-completed'};
-      const statusTxt = {pending:'⏳ Kutilmoqda',processing:'🔄 Qidirilmoqda',completed:'✅ Bajarildi'};
-      const chips = (o.usernames || []).map(u => `<span class="username-chip">@${u}</span>`).join('');
-      return `<div class="order-item">
-        <div class="order-top">
-          <div class="order-cat">📂 ${o.category}</div>
-          <span class="badge ${statusMap[o.status]||'badge-pending'}">${statusTxt[o.status]||o.status}</span>
-        </div>
-        <div class="order-meta">${o.registered_count}/${o.quantity} ta band • ${(o.price||0).toLocaleString()} so'm</div>
-        ${chips ? `<div class="usernames-list">${chips}</div>` : ''}
-      </div>`;
-    }).join('');
+
+    // Asosiy sahifadagi jadval
+    const tbl = document.getElementById('home-orders-table');
+    if (!orders.length) {
+      tbl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px;">📭 Buyurtmalar yo'q</div>`;
+    } else {
+      const statusTxt = {pending:'⏳',processing:'🔄',completed:'✅'};
+      tbl.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border);">
+            <th style="padding:10px 20px;text-align:left;color:var(--muted);font-weight:600;">Kalit so'z</th>
+            <th style="padding:10px 8px;text-align:center;color:var(--muted);font-weight:600;">Band</th>
+            <th style="padding:10px 20px 10px 8px;text-align:right;color:var(--muted);font-weight:600;">Holat</th>
+          </tr>
+        </thead>
+        <tbody>${orders.slice(0,10).map((o,i) => `
+          <tr style="border-bottom:${i<orders.length-1?'1px solid rgba(255,255,255,0.05)':'none'};">
+            <td style="padding:12px 20px;font-weight:600;">📂 ${o.category}</td>
+            <td style="padding:12px 8px;text-align:center;color:var(--accent2);">${o.registered_count}/${o.quantity}</td>
+            <td style="padding:12px 20px 12px 8px;text-align:right;">${statusTxt[o.status]||'⏳'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+    }
   } catch(e) { console.error(e); }
 }
 
@@ -539,9 +568,10 @@ function goPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
-  document.getElementById('nav-'+name).classList.add('active');
+  const navBtn = document.getElementById('nav-'+name);
+  if (navBtn) navBtn.classList.add('active');
   if(name==='orders') loadOrders();
-  if(name==='balance'||name==='home') loadUserData();
+  if(name==='balance'||name==='home') { loadUserData(); loadOrders(); }
 }
 
 // ── PRICE CALC ────────────────────────────────
