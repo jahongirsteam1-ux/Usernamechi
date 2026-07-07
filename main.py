@@ -180,15 +180,19 @@ user_states = {}
 async def start_cmd(message: Message):
     await create_user(message.from_user.id)
 
-    # Eski pastki klaviaturani tozalash
-    tmp_msg = await message.answer("🔄", reply_markup=ReplyKeyboardRemove())
-    await tmp_msg.delete()
-    
-    await message.answer(
-        f"👋 Xush kelibsiz, <b>{message.from_user.first_name}</b>!\n\n"
-        f"Bu bot orqali <b>qisqa va ma'noli</b> Telegram usernamelarni "
-        f"avtomatik band qilib olishingiz mumkin.\n\n"
-        f"👇 Quyidagi tugma orqali dasturga kiring:",
+    from aiogram.types import FSInputFile
+    banner = FSInputFile("static/welcome_banner.png")
+    await message.answer_photo(
+        photo=banner,
+        caption=(
+            f"👋 Salom, <b>{message.from_user.first_name}</b>!\n\n"
+            f"🎯 <b>Usernamechi Bot</b>ga xush kelibsiz!\n\n"
+            f"Bu bot orqali siz <b>qisqa, chiroyli va ma'noli</b> "
+            f"Telegram usernamelarni avtomatik ravishda topib, "
+            f"<b>sizning akkauntingizga</b> band qildirasiz.\n\n"
+            f"⚡️ Tez • 🔒 Xavfsiz • 🎯 Aniq\n\n"
+            f"👇 Quyidagi tugma orqali dasturni oching:"
+        ),
         reply_markup=main_menu(),
         parse_mode="HTML"
     )
