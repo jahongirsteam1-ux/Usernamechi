@@ -22,7 +22,8 @@ from aiogram import Bot, Dispatcher, Router, F
 from aiogram.types import (
     Message, CallbackQuery,
     InlineKeyboardMarkup, InlineKeyboardButton,
-    ReplyKeyboardMarkup, KeyboardButton
+    ReplyKeyboardMarkup, KeyboardButton,
+    WebAppInfo, ReplyKeyboardRemove
 )
 from aiogram.filters import CommandStart
 from dotenv import load_dotenv
@@ -166,9 +167,7 @@ def generate_usernames(base_word: str, limit: int = 200) -> list:
 # ─── ASOSIY MENYU ─────────────────────────────
 def main_menu():
     return ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text="💰 Balans"), KeyboardButton(text="💳 To'ldirish")],
-        [KeyboardButton(text="🛒 Username sotib olish")],
-        [KeyboardButton(text="🔗 Akkaunt ulash"), KeyboardButton(text="📋 Buyurtmalarim")]
+        [KeyboardButton(text="📱 Dasturni ochish", web_app=WebAppInfo(url=f"{WEB_URL}/app"))]
     ], resize_keyboard=True)
 
 # ─── ROUTER VA HANDLERLAR ─────────────────────
@@ -192,151 +191,6 @@ async def start_cmd(message: Message):
         parse_mode="HTML"
     )
 
-@router.message(F.text == "💰 Balans")
-async def balance_cmd(message: Message):
-    await create_user(message.from_user.id)
-    user = await get_user(message.from_user.id)
-    await message.answer(
-        f"💰 Balansingiz: <b>{user['balance']:,} so'm</b>\n\n"
-        f"To'ldirish uchun '💳 To'ldirish' tugmasini bosing.",
-        parse_mode="HTML"
-    )
-
-@router.message(F.text == "💳 To'ldirish")
-async def topup_cmd(message: Message):
-    await message.answer(
-        f"💳 <b>Balansni to'ldirish</b>\n\n"
-        f"Karta raqamimizga to'lov qiling:\n"
-        f"<code>{PAYMENT_CARD}</code>\n\n"
-        f"To'lov qilgach, chek rasmini (screenshot) shu yerga yuboring. "
-        f"Admin tasdiqlashi bilan balansingiz to'ldiriladi.",
-        parse_mode="HTML"
-    )
-
-@router.message(F.text == "🔗 Akkaunt ulash")
-async def link_account_cmd(message: Message):
-    user = await get_user(message.from_user.id)
-    if user and user["session_string"]:
-        markup = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔄 Yangi session bilan almashtirish", callback_data="replace_session")],
-            [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_session")]
-        ])
-        await message.answer(
-            "✅ Akkauntingiz allaqachon ulangan!\n\n"
-            "Yangi session bilan almashtirishni xohlaysizmi?",
-            reply_markup=markup
-        )
-    else:
-        user_states[message.from_user.id] = {"step": "wait_session"}
-        await message.answer(
-            "🔗 <b>Akkaunt ulash</b>\n\n"
-            "Username band qilish uchun Telegram akkauntingizni ulashingiz kerak.\n\n"
-            "<b>Session String qanday olish mumkin:</b>\n"
-            "1️⃣ @StringSessionBot botiga kiring\n"
-            "2️⃣ /generate buyrug'ini yuboring\n"
-            "3️⃣ API ID va API HASH kiriting (my.telegram.org dan)\n"
-            "4️⃣ Telefon raqamingizni kiriting\n"
-            "5️⃣ SMS kodni kiriting\n"
-            "6️⃣ Bot sizga uzun session string beradi\n\n"
-            "✉️ <b>Endi o'sha session stringni shu yerga yuboring:</b>",
-            parse_mode="HTML"
-        )
-
-@router.callback_query(F.data == "replace_session")
-async def replace_session_cb(call: CallbackQuery):
-    user_states[call.from_user.id] = {"step": "wait_session"}
-    await call.message.edit_text(
-        "✉️ Yangi session stringni yuboring:"
-    )
-
-@router.callback_query(F.data == "cancel_session")
-async def cancel_session_cb(call: CallbackQuery):
-    await call.message.edit_text("❌ Bekor qilindi.")
-
-@router.message(F.text == "🛒 Username sotib olish")
-async def buy_username_cmd(message: Message):
-    user = await get_user(message.from_user.id)
-    if not user or not user["session_string"]:
-        await message.answer(
-            "⚠️ Avval akkauntingizni ulang!\n\n"
-            "'🔗 Akkaunt ulash' tugmasini bosing."
-        )
-        return
-    user_states[message.from_user.id] = {"step": "wait_category"}
-    price = int(await get_setting("username_price", 5000))
-    await message.answer(
-        f"🎯 <b>Username kategoriyasini kiriting</b>\n\n"
-        f"Misol: <code>dastur</code>, <code>kino</code>, <code>biznes</code>, <code>savdo</code>\n\n"
-        f"Bot shu so'z asosida ko'plab variantlar yasab, bo'shlarini band qiladi.\n\n"
-        f"💵 1 ta username narxi: <b>{price:,} so'm</b>",
-        parse_mode="HTML"
-    )
-
-@router.message(F.text == "📋 Buyurtmalarim")
-async def my_orders_cmd(message: Message):
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM orders WHERE telegram_id=? ORDER BY id DESC LIMIT 10",
-            (message.from_user.id,)
-        ) as cur:
-            orders = await cur.fetchall()
-
-    if not orders:
-        await message.answer("📋 Hozircha buyurtmalaringiz yo'q.")
-        return
-
-    text = "📋 <b>So'nggi buyurtmalaringiz:</b>\n\n"
-    for o in orders:
-        status_icon = {"pending": "⏳", "processing": "🔄", "completed": "✅"}.get(o["status"], "❓")
-        text += (f"{status_icon} #{o['id']} — <b>{o['category']}</b>\n"
-                 f"   {o['registered_count']}/{o['quantity']} ta | {o['price']:,} so'm\n\n")
-    await message.answer(text, parse_mode="HTML")
-
-@router.message(F.photo)
-async def handle_payment_photo(message: Message):
-    user_id = message.from_user.id
-    caption = (
-        f"💰 Yangi to'lov cheki!\n"
-        f"Foydalanuvchi ID: {user_id}\n"
-        f"Ism: {message.from_user.full_name}\n\n"
-        f"Summani tasdiqlang:"
-    )
-    markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ 10,000 so'm",  callback_data=f"pay_{user_id}_10000")],
-        [InlineKeyboardButton(text="✅ 25,000 so'm",  callback_data=f"pay_{user_id}_25000")],
-        [InlineKeyboardButton(text="✅ 50,000 so'm",  callback_data=f"pay_{user_id}_50000")],
-        [InlineKeyboardButton(text="✅ 100,000 so'm", callback_data=f"pay_{user_id}_100000")],
-        [InlineKeyboardButton(text="❌ Rad etish",    callback_data=f"pay_reject_{user_id}")]
-    ])
-    try:
-        await message.bot.send_photo(
-            chat_id=ADMIN_CHANNEL,
-            photo=message.photo[-1].file_id,
-            caption=caption,
-            reply_markup=markup
-        )
-        await message.answer("✅ Chek adminga yuborildi! Tasdiqlangach, balansingiz to'ldiriladi.")
-    except Exception as e:
-        logger.error(f"Admin kanalga yuborishda xato: {e}")
-        await message.answer("❌ Xato yuz berdi. Admin kanalini tekshiring.")
-
-@router.callback_query(F.data.startswith("pay_reject_"))
-async def reject_payment(call: CallbackQuery):
-    user_id = int(call.data.split("_")[2])
-    await call.message.edit_caption(caption="❌ To'lov rad etildi.")
-    await call.bot.send_message(user_id, "❌ To'lovingiz rad etildi. Muammo bo'lsa adminga murojaat qiling.")
-
-@router.callback_query(F.data.startswith("pay_"))
-async def approve_payment(call: CallbackQuery):
-    parts = call.data.split("_")
-    if parts[1] == "reject":
-        return
-    user_id = int(parts[1])
-    amount  = int(parts[2])
-    await update_balance(user_id, amount)
-    await call.message.edit_caption(caption=f"✅ {amount:,} so'm tasdiqlandi va balansi to'ldirildi.")
-    await call.bot.send_message(user_id, f"🎉 Balansingiz <b>{amount:,} so'm</b>ga to'ldirildi!", parse_mode="HTML")
 
 async def save_session(telegram_id, session_string):
     async with aiosqlite.connect(DB_PATH) as db:
