@@ -438,15 +438,18 @@ if os.path.exists("static"):
 def verify_init_data(init_data: str) -> dict | None:
     """Telegram WebApp init_data ni tekshiradi."""
     try:
-        from urllib.parse import unquote
-        params = dict(p.split('=', 1) for p in init_data.split('&') if '=' in p)
+        from urllib.parse import parse_qsl
+        if not init_data: return None
+        params = dict(parse_qsl(init_data, keep_blank_values=True))
         received_hash = params.pop('hash', '')
         data_check = '\n'.join(f'{k}={v}' for k, v in sorted(params.items()))
         secret = hmac.new(b'WebAppData', BOT_TOKEN.encode(), hashlib.sha256).digest()
         calc_hash = hmac.new(secret, data_check.encode(), hashlib.sha256).hexdigest()
+        
         if not hmac.compare_digest(calc_hash, received_hash):
             return None
-        user_str = unquote(params.get('user', '{}'))
+            
+        user_str = params.get('user', '{}')
         return json.loads(user_str)
     except:
         return None
