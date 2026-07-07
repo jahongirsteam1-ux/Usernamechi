@@ -180,6 +180,18 @@ user_states = {}
 async def start_cmd(message: Message):
     await create_user(message.from_user.id)
     
+    # Admin panelga kirish
+    if "admin" in message.text:
+        if message.from_user.id in ADMIN_IDS:
+            token = get_admin_token(message.from_user.id)
+            markup = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🔧 Admin Panelga kirish", web_app=WebAppInfo(url=f"{WEB_URL}/admin?token={token}"))]
+            ])
+            await message.answer("Xush kelibsiz, Admin! Quyidagi tugma orqali panelga kiring:", reply_markup=markup)
+        else:
+            await message.answer("Sizda admin huquqi yo'q.")
+        return
+
     # Eski pastki klaviaturani tozalash
     tmp_msg = await message.answer("🔄", reply_markup=ReplyKeyboardRemove())
     await tmp_msg.delete()
