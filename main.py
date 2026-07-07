@@ -164,7 +164,11 @@ def generate_usernames(base_word: str, limit: int = 200) -> list:
     results = set()
     bases = [base]
     
-    if any(x in base for x in ["ism", "name", "familiya", "uzb", "odam", "qiz", "bol"]):
+    if base in ["ism", "ismlar", "name", "qiz", "qizlar", "bola", "bolalar"]:
+        bases.extend(uz_names)
+    elif base in ["familiya", "familiyalar", "surname"]:
+        bases.extend(uz_surnames)
+    elif base in ["uzb", "odam", "inson"]:
         bases.extend(uz_names)
         bases.extend(uz_surnames)
         for _ in range(20):
@@ -174,8 +178,9 @@ def generate_usernames(base_word: str, limit: int = 200) -> list:
     for b in bases:
         results.add(b)
         for suf in suffixes:
-            # Familiya qo'shimchalari takrorlanishini oldini olish (masalan: abdullayevyeva)
-            if b.endswith(("ov", "ova", "yev", "yeva", "boy", "xon", "bek", "jon")) and suf in ["ov", "ova", "yev", "yeva", "boy", "xon", "bek", "jon"]:
+            # Qat'iy tekshiruv: ism yoki familiya qo'shimchasi allaqachon bo'lsa, ikkinchisini qo'shmaslik
+            uz_suffixes = ["ov", "ova", "yev", "yeva", "boy", "xon", "bek", "jon", "zoda", "mirza", "xoja", "chi", "lar"]
+            if any(b.endswith(x) for x in uz_suffixes) and suf in uz_suffixes:
                 continue
             if b.endswith(suf):
                 continue
@@ -186,7 +191,9 @@ def generate_usernames(base_word: str, limit: int = 200) -> list:
         if len(bases) < 10: # Faqat oddiy so'z uchun chuqur kombinatsiya
             for suf in suffixes:
                 for pref in prefixes[:4]:
-                    results.add(f"{pref}{b}{suf}")
+                    uz_suffixes = ["ov", "ova", "yev", "yeva", "boy", "xon", "bek", "jon", "zoda", "mirza", "xoja", "chi", "lar"]
+                    if not (any(b.endswith(x) for x in uz_suffixes) and suf in uz_suffixes) and not b.endswith(suf):
+                        results.add(f"{pref}{b}{suf}")
 
     # Faqat 5+ harflilarni va maximal 32 ta harflilarni olamiz
     valid = [u for u in results if 5 <= len(u) <= 32]
