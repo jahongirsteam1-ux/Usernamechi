@@ -2,178 +2,89 @@
 <html lang="uz">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Admin Panel — Usernamechi</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-  :root {
-    --bg: #070711;
-    --sidebar: #0d0d1a;
-    --card: rgba(255,255,255,0.04);
-    --border: rgba(255,255,255,0.08);
-    --accent: #7c3aed;
-    --accent2: #06b6d4;
-    --success: #10b981;
-    --danger: #ef4444;
-    --warning: #f59e0b;
-    --text: #f1f5f9;
-    --muted: #64748b;
-  }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; }
-
-  /* LOGIN */
-  #login-screen {
-    position:fixed; inset:0; background:var(--bg);
-    display:flex; align-items:center; justify-content:center; z-index:999;
-  }
-  .login-box {
-    background:var(--sidebar); border:1px solid var(--border);
-    border-radius:24px; padding:48px 40px; width:380px; text-align:center;
-  }
-  .login-logo { font-size:48px; margin-bottom:16px; }
-  .login-title { font-size:24px; font-weight:800; margin-bottom:8px; }
-  .login-sub { color:var(--muted); font-size:14px; margin-bottom:32px; }
-  .login-btn {
-    width:100%; padding:16px; background:linear-gradient(135deg,#7c3aed,#06b6d4);
-    border:none; border-radius:12px; color:#fff; font-size:16px; font-weight:600;
-    cursor:pointer; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:10px;
-    transition: opacity 0.2s;
-  }
-  .login-btn:hover { opacity:0.9; }
-
-  /* SIDEBAR */
-  aside {
-    width:240px; background:var(--sidebar);
-    border-right:1px solid var(--border);
-    display:flex; flex-direction:column; min-height:100vh;
-    position:fixed; left:0; top:0; bottom:0;
-  }
-  .logo {
-    padding:24px 20px; font-size:20px; font-weight:800;
-    background:linear-gradient(135deg,#a78bfa,#67e8f9);
-    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-    border-bottom:1px solid var(--border);
-  }
-  .logo span { display:block; font-size:11px; color:var(--muted); font-weight:400; -webkit-text-fill-color:#64748b; margin-top:2px; }
-  nav { flex:1; padding:16px 12px; }
-  nav a {
-    display:flex; align-items:center; gap:12px;
-    padding:10px 12px; border-radius:10px; margin-bottom:4px;
-    color:var(--muted); text-decoration:none; font-size:14px; font-weight:500;
-    transition:all 0.2s; cursor:pointer;
-  }
-  nav a:hover { background:var(--card); color:var(--text); }
-  nav a.active { background:rgba(124,58,237,0.15); color:#a78bfa; }
-  nav a svg { width:18px; height:18px; flex-shrink:0; }
-
-  /* MAIN */
-  main { margin-left:240px; flex:1; padding:32px; min-height:100vh; }
-  .page { display:none; }
+  :root { --bg:#070711; --card:rgba(255,255,255,0.05); --border:rgba(255,255,255,0.08); --accent:#7c3aed; --accent2:#06b6d4; --success:#10b981; --danger:#ef4444; --warning:#f59e0b; --text:#f1f5f9; --muted:#64748b; }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+  body::before { content:''; position:fixed; inset:0; background:radial-gradient(ellipse at 20% 10%,rgba(124,58,237,0.12) 0%,transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(6,182,212,0.08) 0%,transparent 60%); pointer-events:none; z-index:0; }
+  #login-screen { position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; z-index:999; padding:20px; }
+  .login-box { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:24px; padding:40px 28px; width:100%; max-width:360px; text-align:center; }
+  .login-logo { font-size:52px; margin-bottom:16px; }
+  .login-title { font-size:22px; font-weight:800; margin-bottom:8px; }
+  .login-sub { color:var(--muted); font-size:14px; margin-bottom:32px; line-height:1.5; }
+  .login-btn { width:100%; padding:16px; background:linear-gradient(135deg,#7c3aed,#06b6d4); border:none; border-radius:14px; color:#fff; font-size:16px; font-weight:600; cursor:pointer; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:10px; }
+  nav { position:fixed; bottom:0; left:0; right:0; background:rgba(7,7,17,0.95); backdrop-filter:blur(20px); border-top:1px solid var(--border); display:flex; z-index:100; padding:8px 0 max(8px,env(safe-area-inset-bottom)); }
+  nav button { flex:1; background:none; border:none; color:var(--muted); display:flex; flex-direction:column; align-items:center; gap:3px; font-size:9px; font-weight:500; cursor:pointer; padding:6px 0; transition:color 0.2s; position:relative; }
+  nav button.active { color:var(--accent); }
+  nav button svg { width:22px; height:22px; }
+  .nav-badge { position:absolute; top:2px; right:calc(50% - 18px); background:var(--danger); color:#fff; border-radius:10px; padding:1px 5px; font-size:9px; font-weight:700; display:none; }
+  .page { display:none; padding:16px 16px 90px; position:relative; z-index:1; }
   .page.active { display:block; }
-  .page-title { font-size:28px; font-weight:800; margin-bottom:24px; }
-  .page-title span {
-    background:linear-gradient(135deg,#a78bfa,#67e8f9);
-    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-  }
-
-  /* STAT CARDS */
-  .stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:32px; }
-  .stat-box {
-    background:var(--card); border:1px solid var(--border);
-    border-radius:16px; padding:20px;
-  }
-  .stat-box .s-icon { font-size:28px; margin-bottom:12px; }
-  .stat-box .s-val { font-size:32px; font-weight:800; margin-bottom:4px; }
-  .stat-box .s-lbl { color:var(--muted); font-size:13px; }
-  .stat-box.purple { border-color:rgba(124,58,237,0.3); }
-  .stat-box.purple .s-val { color:#a78bfa; }
-  .stat-box.cyan { border-color:rgba(6,182,212,0.3); }
-  .stat-box.cyan .s-val { color:#67e8f9; }
-  .stat-box.green { border-color:rgba(16,185,129,0.3); }
-  .stat-box.green .s-val { color:#34d399; }
-  .stat-box.yellow { border-color:rgba(245,158,11,0.3); }
-  .stat-box.yellow .s-val { color:#fbbf24; }
-
-  /* TABLE */
-  .table-card {
-    background:var(--card); border:1px solid var(--border);
-    border-radius:16px; overflow:hidden; margin-bottom:24px;
-  }
-  .table-header {
-    padding:20px 24px; border-bottom:1px solid var(--border);
-    display:flex; align-items:center; justify-content:space-between;
-    font-weight:700; font-size:15px;
-  }
-  table { width:100%; border-collapse:collapse; }
-  thead tr { background:rgba(255,255,255,0.02); }
-  th { padding:12px 24px; text-align:left; font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; }
-  td { padding:14px 24px; font-size:14px; border-top:1px solid var(--border); }
-  tr:hover td { background:rgba(255,255,255,0.02); }
-
-  /* BADGES */
-  .badge { padding:4px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+  .page-title { font-size:22px; font-weight:800; margin-bottom:16px; padding-top:8px; }
+  .page-title span { background:linear-gradient(135deg,#a78bfa,#67e8f9); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+  .stat-box { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px; }
+  .stat-box .s-icon { font-size:24px; margin-bottom:8px; }
+  .stat-box .s-val { font-size:26px; font-weight:800; margin-bottom:2px; }
+  .stat-box .s-lbl { color:var(--muted); font-size:11px; }
+  .stat-box.purple { border-color:rgba(124,58,237,0.3); } .stat-box.purple .s-val { color:#a78bfa; }
+  .stat-box.cyan { border-color:rgba(6,182,212,0.3); } .stat-box.cyan .s-val { color:#67e8f9; }
+  .stat-box.green { border-color:rgba(16,185,129,0.3); } .stat-box.green .s-val { color:#34d399; }
+  .stat-box.yellow { border-color:rgba(245,158,11,0.3); } .stat-box.yellow .s-val { color:#fbbf24; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:12px; }
+  .payment-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:10px; }
+  .payment-card.pending-card { border-color:rgba(245,158,11,0.3); }
+  .payment-card .p-id { color:var(--muted); font-size:11px; margin-bottom:4px; }
+  .payment-card .p-user { font-weight:700; font-size:15px; margin-bottom:4px; }
+  .payment-card .p-amount { font-size:20px; font-weight:800; color:var(--success); margin-bottom:8px; }
+  .payment-card .p-date { color:var(--muted); font-size:11px; margin-bottom:12px; }
+  .payment-card .p-actions { display:flex; gap:8px; }
+  .user-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:10px; display:flex; align-items:center; gap:12px; }
+  .user-avatar { width:44px; height:44px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#7c3aed,#06b6d4); display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; }
+  .user-info { flex:1; min-width:0; }
+  .user-info .u-id { font-size:13px; font-weight:600; }
+  .user-info .u-bal { color:var(--accent2); font-size:12px; margin-top:2px; }
+  .user-info .u-status { font-size:11px; color:var(--muted); margin-top:2px; }
+  .order-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:10px; }
+  .order-card .o-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .order-card .o-cat { font-weight:700; font-size:14px; }
+  .order-card .o-meta { color:var(--muted); font-size:12px; }
+  .badge { padding:4px 10px; border-radius:20px; font-size:11px; font-weight:600; }
   .b-pending { background:rgba(245,158,11,0.15); color:#fbbf24; }
   .b-processing { background:rgba(59,130,246,0.15); color:#60a5fa; }
-  .b-completed { background:rgba(16,185,129,0.15); color:#34d399; }
-
-  /* BUTTONS */
-  .btn { padding:8px 16px; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; transition:opacity 0.2s; }
-  .btn:hover { opacity:0.8; }
+  .b-completed,.b-approved { background:rgba(16,185,129,0.15); color:#34d399; }
+  .b-rejected { background:rgba(239,68,68,0.15); color:#f87171; }
+  .btn { padding:10px 16px; border:none; border-radius:10px; font-size:13px; font-weight:600; cursor:pointer; transition:opacity 0.2s; flex:1; }
+  .btn:active { transform:scale(0.97); }
   .btn-approve { background:rgba(16,185,129,0.2); color:#34d399; }
-  .btn-reject { background:rgba(239,68,68,0.2); color:#f87171; margin-left:6px; }
+  .btn-reject { background:rgba(239,68,68,0.2); color:#f87171; }
   .btn-edit { background:rgba(124,58,237,0.2); color:#a78bfa; }
-  .btn-primary { background:linear-gradient(135deg,#7c3aed,#06b6d4); color:#fff; }
-
-  /* CHART */
-  .chart-card {
-    background:var(--card); border:1px solid var(--border);
-    border-radius:16px; padding:24px; margin-bottom:24px;
-  }
-  .chart-title { font-weight:700; font-size:16px; margin-bottom:20px; }
-
-  /* TOAST */
-  .toast {
-    position:fixed; top:20px; right:20px;
-    background:rgba(30,30,40,0.95); backdrop-filter:blur(20px);
-    border:1px solid var(--border);
-    border-radius:12px; padding:14px 20px;
-    font-size:14px; font-weight:500; z-index:999;
-    opacity:0; transition:opacity 0.3s; min-width:250px;
-  }
-  .toast.show { opacity:1; }
-  .toast.success { border-color:var(--success); }
-  .toast.error { border-color:var(--danger); }
-
-  /* MODAL */
-  .modal-bg {
-    position:fixed; inset:0; background:rgba(0,0,0,0.7);
-    backdrop-filter:blur(4px); display:none;
-    align-items:center; justify-content:center; z-index:500;
-  }
+  .btn-primary { background:linear-gradient(135deg,#7c3aed,#06b6d4); color:#fff; width:100%; padding:14px; border-radius:12px; font-size:15px; border:none; cursor:pointer; font-weight:600; font-family:'Inter',sans-serif; }
+  .chart-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:12px; }
+  .chart-title { font-weight:700; font-size:14px; margin-bottom:14px; }
+  .set-group { margin-bottom:16px; }
+  .set-group label { display:block; margin-bottom:8px; color:var(--muted); font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; }
+  .set-group input { width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:12px; padding:14px; color:var(--text); outline:none; font-size:15px; font-family:'Inter',sans-serif; }
+  .set-group input:focus { border-color:var(--accent); }
+  .toast { position:fixed; top:16px; left:50%; transform:translateX(-50%); background:rgba(20,20,35,0.97); backdrop-filter:blur(20px); border:1px solid var(--border); border-radius:12px; padding:12px 20px; font-size:13px; font-weight:500; z-index:9999; opacity:0; transition:opacity 0.3s; white-space:nowrap; }
+  .toast.show { opacity:1; } .toast.success { border-color:var(--success); } .toast.error { border-color:var(--danger); }
+  .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(4px); display:none; align-items:flex-end; justify-content:center; z-index:500; padding:16px; }
   .modal-bg.open { display:flex; }
-  .modal {
-    background:var(--sidebar); border:1px solid var(--border);
-    border-radius:20px; padding:32px; width:420px; max-width:90%;
-  }
-  .modal h3 { font-size:18px; font-weight:700; margin-bottom:20px; }
-  .modal input {
-    width:100%; background:var(--card); border:1px solid var(--border);
-    border-radius:10px; padding:12px 14px; color:var(--text);
-    font-size:14px; outline:none; margin-bottom:12px;
-  }
-  .modal input:focus { border-color:var(--accent); }
-  .modal-btns { display:flex; gap:10px; margin-top:16px; }
-
-  @media (max-width:1024px) {
-    .stat-grid { grid-template-columns:repeat(2,1fr); }
-  }
+  .modal { background:#0f0f1f; border:1px solid var(--border); border-radius:20px; padding:24px; width:100%; max-width:420px; }
+  .modal h3 { font-size:17px; font-weight:700; margin-bottom:16px; }
+  .modal input { width:100%; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px; color:var(--text); font-size:15px; outline:none; margin-bottom:10px; font-family:'Inter',sans-serif; }
+  .modal-btns { display:flex; gap:10px; margin-top:8px; }
+  .empty { text-align:center; padding:40px 20px; color:var(--muted); }
+  .empty .e-icon { font-size:48px; margin-bottom:12px; }
+  .empty .e-text { font-size:14px; }
 </style>
 </head>
 <body>
 
-<!-- LOGIN -->
 <div id="login-screen">
   <div class="login-box">
     <div class="login-logo">🛡️</div>
@@ -186,144 +97,79 @@
   </div>
 </div>
 
-<!-- SIDEBAR -->
-<aside>
-  <div class="logo">
-    Usernamechi
-    <span>Admin Panel</span>
+<nav>
+  <button class="active" id="nav-dashboard" onclick="goPage('dashboard',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+    Bosh
+  </button>
+  <button id="nav-payments" onclick="goPage('payments',this)">
+    <div class="nav-badge" id="pending-badge"></div>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+    Tolovlar
+  </button>
+  <button id="nav-users" onclick="goPage('users',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    Foydalanuvchi
+  </button>
+  <button id="nav-orders" onclick="goPage('orders',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+    Buyurtma
+  </button>
+  <button id="nav-settings" onclick="goPage('settings',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    Sozlama
+  </button>
+</nav>
+
+<div class="page active" id="page-dashboard">
+  <div class="page-title">Dashboard <span>📊</span></div>
+  <div class="stat-grid">
+    <div class="stat-box purple"><div class="s-icon">👥</div><div class="s-val" id="d-users">-</div><div class="s-lbl">Foydalanuvchi</div></div>
+    <div class="stat-box cyan"><div class="s-icon">📋</div><div class="s-val" id="d-orders">-</div><div class="s-lbl">Buyurtmalar</div></div>
+    <div class="stat-box green"><div class="s-icon">✅</div><div class="s-val" id="d-usernames">-</div><div class="s-lbl">Band qilingan</div></div>
+    <div class="stat-box yellow"><div class="s-icon">💰</div><div class="s-val" id="d-revenue">-</div><div class="s-lbl">Daromad</div></div>
   </div>
-  <nav>
-    <a class="active" onclick="goPage('dashboard')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-      Dashboard
-    </a>
-    <a onclick="goPage('payments')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-      To'lovlar
-      <span id="pending-badge" style="margin-left:auto;background:var(--danger);color:#fff;border-radius:20px;padding:2px 8px;font-size:11px;display:none;"></span>
-    </a>
-    <a onclick="goPage('users')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      Foydalanuvchilar
-    </a>
-    <a onclick="goPage('orders')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-      Buyurtmalar
-    </a>
-    <a onclick="goPage('stats')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-      Statistika
-    </a>
-    <a onclick="goPage('settings')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      Sozlamalar
-    </a>
-  </nav>
-</aside>
-
-<!-- MAIN -->
-<main>
-  <!-- DASHBOARD -->
-  <div class="page active" id="page-dashboard">
-    <div class="page-title">Dashboard <span>📊</span></div>
-    <div class="stat-grid">
-      <div class="stat-box purple"><div class="s-icon">👥</div><div class="s-val" id="d-users">-</div><div class="s-lbl">Foydalanuvchilar</div></div>
-      <div class="stat-box cyan"><div class="s-icon">📋</div><div class="s-val" id="d-orders">-</div><div class="s-lbl">Buyurtmalar</div></div>
-      <div class="stat-box green"><div class="s-icon">✅</div><div class="s-val" id="d-usernames">-</div><div class="s-lbl">Band qilingan</div></div>
-      <div class="stat-box yellow"><div class="s-icon">💰</div><div class="s-val" id="d-revenue">-</div><div class="s-lbl">Daromad (so'm)</div></div>
-    </div>
-
-    <div class="chart-card">
-      <div class="chart-title">📈 Kunlik daromad (so'nggi 7 kun)</div>
-      <canvas id="revenue-chart" height="80"></canvas>
-    </div>
-
-    <div class="table-card">
-      <div class="table-header">⏳ Tasdiqlash kutilayotgan to'lovlar</div>
-      <table>
-        <thead><tr><th>Foydalanuvchi</th><th>Vaqt</th><th>Amal</th></tr></thead>
-        <tbody id="pending-payments-table"><tr><td colspan="3" style="text-align:center;color:var(--muted);padding:30px;">Yuklanmoqda...</td></tr></tbody>
-      </table>
-    </div>
+  <div class="chart-card">
+    <div class="chart-title">📈 Kunlik daromad (7 kun)</div>
+    <canvas id="revenue-chart" height="100"></canvas>
   </div>
+  <div style="font-weight:700;font-size:14px;margin-bottom:10px;">⏳ Kutilayotgan tolovlar</div>
+  <div id="pending-payments-list"><div class="empty"><div class="e-icon">⏳</div><div class="e-text">Yuklanmoqda...</div></div></div>
+</div>
 
-  <!-- PAYMENTS -->
-  <div class="page" id="page-payments">
-    <div class="page-title"><span>To'lovlar</span> 💳</div>
-    <div class="table-card">
-      <div class="table-header">Barcha to'lov so'rovlari</div>
-      <table>
-        <thead><tr><th>ID</th><th>Foydalanuvchi</th><th>Summa</th><th>Holat</th><th>Vaqt</th><th>Amal</th></tr></thead>
-        <tbody id="all-payments-table"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px;">Yuklanmoqda...</td></tr></tbody>
-      </table>
-    </div>
+<div class="page" id="page-payments">
+  <div class="page-title"><span>Tolovlar</span> 💳</div>
+  <div id="all-payments-list"><div class="empty"><div class="e-icon">💳</div><div class="e-text">Yuklanmoqda...</div></div></div>
+</div>
+
+<div class="page" id="page-users">
+  <div class="page-title"><span>Foydalanuvchilar</span> 👥</div>
+  <div id="users-list"><div class="empty"><div class="e-icon">👥</div><div class="e-text">Yuklanmoqda...</div></div></div>
+</div>
+
+<div class="page" id="page-orders">
+  <div class="page-title"><span>Buyurtmalar</span> 📋</div>
+  <div id="orders-list"><div class="empty"><div class="e-icon">📋</div><div class="e-text">Yuklanmoqda...</div></div></div>
+</div>
+
+<div class="page" id="page-settings">
+  <div class="page-title"><span>Sozlamalar</span> ⚙️</div>
+  <div class="card">
+    <div class="set-group"><label>💳 Karta raqami</label><input type="text" id="set-card" placeholder="8600 0000 0000 0000"></div>
+    <div class="set-group"><label>📢 Tolov kanali ID</label><input type="text" id="set-channel" placeholder="-100123456789"></div>
+    <div class="set-group"><label>💰 Username narxi (som)</label><input type="number" id="set-price" placeholder="5000"></div>
+    <button class="btn-primary" onclick="saveSettings()">💾 Saqlash</button>
   </div>
+</div>
 
-  <!-- USERS -->
-  <div class="page" id="page-users">
-    <div class="page-title"><span>Foydalanuvchilar</span> 👥</div>
-    <div class="table-card">
-      <table>
-        <thead><tr><th>ID</th><th>Telegram</th><th>Balans</th><th>Akkaunt</th><th>Buyurtma</th><th>Amal</th></tr></thead>
-        <tbody id="users-table"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px;">Yuklanmoqda...</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- ORDERS -->
-  <div class="page" id="page-orders">
-    <div class="page-title"><span>Buyurtmalar</span> 📋</div>
-    <div class="table-card">
-      <table>
-        <thead><tr><th>ID</th><th>Foydalanuvchi</th><th>Kategoriya</th><th>Miqdor</th><th>Narx</th><th>Holat</th></tr></thead>
-        <tbody id="orders-table"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px;">Yuklanmoqda...</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- STATS -->
-  <div class="page" id="page-stats">
-    <div class="page-title"><span>Statistika</span> 📈</div>
-    <div class="chart-card">
-      <div class="chart-title">Haftalik buyurtmalar</div>
-      <canvas id="orders-chart" height="100"></canvas>
-    </div>
-    <div class="chart-card">
-      <div class="chart-title">Foydalanuvchilar o'sishi</div>
-      <canvas id="users-chart" height="100"></canvas>
-    </div>
-  </div>
-
-  <!-- SETTINGS -->
-  <div class="page" id="page-settings">
-    <div class="page-title"><span>Sozlamalar</span> ⚙️</div>
-    <div class="table-card" style="padding:24px;">
-      <div style="margin-bottom:20px;">
-        <label style="display:block;margin-bottom:8px;color:var(--muted);font-size:13px;font-weight:600;">💳 Karta raqami (To'lov uchun)</label>
-        <input type="text" id="set-card" style="width:100%;max-width:400px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);outline:none;">
-      </div>
-      <div style="margin-bottom:20px;">
-        <label style="display:block;margin-bottom:8px;color:var(--muted);font-size:13px;font-weight:600;">📢 To'lov kanali ID (Masalan: -100123...)</label>
-        <input type="text" id="set-channel" style="width:100%;max-width:400px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);outline:none;">
-      </div>
-      <div style="margin-bottom:24px;">
-        <label style="display:block;margin-bottom:8px;color:var(--muted);font-size:13px;font-weight:600;">💰 1 ta username narxi (so'm)</label>
-        <input type="number" id="set-price" style="width:100%;max-width:400px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);outline:none;">
-      </div>
-      <button class="btn btn-primary" onclick="saveSettings()" style="padding:12px 24px;">Saqlash</button>
-    </div>
-  </div>
-</main>
-
-<!-- EDIT BALANCE MODAL -->
 <div class="modal-bg" id="edit-modal">
   <div class="modal">
     <h3>💰 Balans tahrirlash</h3>
-    <input type="number" id="edit-user-id" placeholder="Foydalanuvchi ID" readonly style="opacity:0.6;">
-    <input type="number" id="edit-amount" placeholder="Yangi balans miqdori (so'm)">
+    <input type="number" id="edit-user-id" readonly style="opacity:0.5;">
+    <input type="number" id="edit-amount" placeholder="Yangi balans (som)">
     <div class="modal-btns">
-      <button class="btn btn-primary" onclick="saveBalance()">Saqlash</button>
-      <button class="btn" onclick="closeModal()" style="background:var(--card);">Bekor</button>
+      <button class="btn btn-approve" onclick="saveBalance()">Saqlash</button>
+      <button class="btn" style="background:var(--card);color:var(--muted);" onclick="closeModal()">Bekor</button>
     </div>
   </div>
 </div>
@@ -331,233 +177,156 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const ADMIN_TOKEN = localStorage.getItem('admin_token') || '';
+let ADMIN_TOKEN = localStorage.getItem('admin_token') || '';
+const h = () => ({'X-Admin-Token': localStorage.getItem('admin_token') || ''});
 
-// ── AUTH CHECK ─────────────────────────────────
 async function checkAuth() {
   const params = new URLSearchParams(location.search);
   const token = params.get('token');
-  if (token) {
-    localStorage.setItem('admin_token', token);
-    history.replaceState({}, '', '/admin');
-  }
+  if (token) { ADMIN_TOKEN = token; localStorage.setItem('admin_token', token); history.replaceState({}, '', '/admin'); }
   try {
-    const res = await fetch('/api/admin/check', {headers:{'X-Admin-Token': localStorage.getItem('admin_token')||''}});
-    if (res.ok) {
-      document.getElementById('login-screen').style.display = 'none';
-      loadDashboard();
-    }
+    const res = await fetch('/api/admin/check', {headers: h()});
+    if (res.ok) { document.getElementById('login-screen').style.display = 'none'; loadDashboard(); }
   } catch(e) {}
 }
 
-// ── NAVIGATION ─────────────────────────────────
-function goPage(name) {
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('nav a').forEach(a=>a.classList.remove('active'));
-  document.getElementById('page-'+name).classList.add('active');
-  event.currentTarget.classList.add('active');
-  const loaders = {dashboard:loadDashboard, payments:loadPayments, users:loadUsers, orders:loadAdminOrders, stats:loadStats, settings:loadSettings};
+function goPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  const loaders = {dashboard:loadDashboard, payments:loadPayments, users:loadUsers, orders:loadAdminOrders, settings:loadSettings};
   if (loaders[name]) loaders[name]();
 }
 
-const h = {'X-Admin-Token': localStorage.getItem('admin_token')||''};
-
-// ── DASHBOARD ──────────────────────────────────
 async function loadDashboard() {
   try {
-    const res = await fetch('/api/admin/stats', {headers:h});
+    const res = await fetch('/api/admin/stats', {headers: h()});
     const d = await res.json();
     document.getElementById('d-users').textContent = d.users||0;
     document.getElementById('d-orders').textContent = d.orders||0;
     document.getElementById('d-usernames').textContent = d.usernames||0;
     document.getElementById('d-revenue').textContent = (d.revenue||0).toLocaleString();
-    drawChart('revenue-chart', d.daily_labels||[], d.daily_revenue||[], '#7c3aed', 'Daromad (so\'m)');
-  } catch(e){}
+    drawChart('revenue-chart', d.daily_labels||[], d.daily_revenue||[], '#7c3aed', 'Daromad');
+  } catch(e) {}
   loadPendingPayments();
 }
 
 async function loadPendingPayments() {
   try {
-    const res = await fetch('/api/admin/payments?status=pending', {headers:h});
+    const res = await fetch('/api/admin/payments?status=pending', {headers: h()});
     const payments = await res.json();
     const badge = document.getElementById('pending-badge');
-    if (payments.length) { badge.textContent=payments.length; badge.style.display='inline'; }
-    else { badge.style.display='none'; }
-    const tb = document.getElementById('pending-payments-table');
-    if (!payments.length) { tb.innerHTML='<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:20px;">Kutilayotgan to\'lovlar yo\'q</td></tr>'; return; }
-    tb.innerHTML = payments.map(p=>`
-      <tr>
-        <td>${p.telegram_id}<br><small style="color:var(--muted)">${p.photo_id?'📸 Chek bor':''}</small></td>
-        <td style="color:var(--muted);font-size:12px;">${new Date(p.created_at).toLocaleString('uz')}</td>
-        <td>
-          <button class="btn btn-approve" onclick="approvePayment(${p.id}, ${p.telegram_id})">✅ Tasdiqlash</button>
-          <button class="btn btn-reject" onclick="rejectPayment(${p.id}, ${p.telegram_id})">❌ Rad</button>
-        </td>
-      </tr>`).join('');
-  } catch(e){}
+    if (payments.length) { badge.textContent = payments.length; badge.style.display = 'block'; } else { badge.style.display = 'none'; }
+    const el = document.getElementById('pending-payments-list');
+    if (!payments.length) { el.innerHTML = '<div class="empty"><div class="e-icon">🎉</div><div class="e-text">Kutilayotgan tolovlar yoq</div></div>'; return; }
+    el.innerHTML = payments.map(p => `
+      <div class="payment-card pending-card">
+        <div class="p-id">Tolov #${p.id}</div>
+        <div class="p-user">👤 ${p.telegram_id}</div>
+        <div class="p-date">🕐 ${new Date(p.created_at*1000).toLocaleString()}</div>
+        <div class="p-actions">
+          <button class="btn btn-approve" onclick="approvePayment(${p.id},${p.telegram_id})">✅ Tasdiqlash</button>
+          <button class="btn btn-reject" onclick="rejectPayment(${p.id},${p.telegram_id})">❌ Rad</button>
+        </div>
+      </div>`).join('');
+  } catch(e) {}
 }
 
-// ── PAYMENTS ───────────────────────────────────
 async function loadPayments() {
   try {
-    const res = await fetch('/api/admin/payments', {headers:h});
+    const res = await fetch('/api/admin/payments', {headers: h()});
     const payments = await res.json();
-    const tb = document.getElementById('all-payments-table');
-    if (!payments.length) { tb.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px;">Yo\'q</td></tr>'; return; }
-    const statusMap = {pending:'b-pending',approved:'b-completed',rejected:''};
-    const statusTxt = {pending:'⏳ Kutilmoqda',approved:'✅ Tasdiqlandi',rejected:'❌ Rad etildi'};
-    tb.innerHTML = payments.map(p=>`
-      <tr>
-        <td>#${p.id}</td>
-        <td>${p.telegram_id}</td>
-        <td>${(p.amount||0).toLocaleString()} so'm</td>
-        <td><span class="badge ${statusMap[p.status]||''}">${statusTxt[p.status]||p.status}</span></td>
-        <td style="color:var(--muted);font-size:12px;">${new Date(p.created_at).toLocaleString('uz')}</td>
-        <td>${p.status==='pending'?`<button class="btn btn-approve" onclick="approvePayment(${p.id},${p.telegram_id},50000)">✅</button><button class="btn btn-reject" onclick="rejectPayment(${p.id},${p.telegram_id})">❌</button>`:'-'}</td>
-      </tr>`).join('');
-  } catch(e){}
+    const el = document.getElementById('all-payments-list');
+    if (!payments.length) { el.innerHTML = '<div class="empty"><div class="e-icon">💳</div><div class="e-text">Tolovlar yoq</div></div>'; return; }
+    const sTxt = {pending:'⏳ Kutilmoqda', approved:'✅ Tasdiqlandi', rejected:'❌ Rad etildi'};
+    const sCls = {pending:'b-pending', approved:'b-approved', rejected:'b-rejected'};
+    el.innerHTML = payments.map(p => `
+      <div class="payment-card">
+        <div class="p-id">Tolov #${p.id}</div>
+        <div class="p-user">👤 ${p.telegram_id}</div>
+        <div class="p-amount">${(p.amount||0).toLocaleString()} som</div>
+        <div class="p-date">🕐 ${new Date(p.created_at*1000).toLocaleString()}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span class="badge ${sCls[p.status]||''}">${sTxt[p.status]||p.status}</span>
+          ${p.status==='pending'?`<div style="display:flex;gap:8px;"><button class="btn btn-approve" style="flex:none;padding:8px 14px;" onclick="approvePayment(${p.id},${p.telegram_id})">✅</button><button class="btn btn-reject" style="flex:none;padding:8px 14px;" onclick="rejectPayment(${p.id},${p.telegram_id})">❌</button></div>`:''}
+        </div>
+      </div>`).join('');
+  } catch(e) {}
 }
 
-async function approvePayment(id, userId, amount=50000) {
-  const amt = prompt('Qancha so\'m tasdiqlaysiz?', amount);
+async function approvePayment(id, userId) {
+  const amt = prompt("Qancha som tasdiqlaysiz?", "50000");
   if (!amt) return;
-  try {
-    await fetch('/api/admin/payment/approve', {method:'POST',headers:{...h,'Content-Type':'application/json'},body:JSON.stringify({payment_id:id,telegram_id:userId,amount:parseInt(amt)})});
-    showToast('✅ To\'lov tasdiqlandi');
-    loadDashboard();
-  } catch(e){ showToast('Xato','error'); }
+  try { await fetch('/api/admin/payment/approve', {method:'POST',headers:{...h(),'Content-Type':'application/json'},body:JSON.stringify({payment_id:id,telegram_id:userId,amount:parseInt(amt)})}); showToast('✅ Tolov tasdiqlandi'); loadDashboard(); loadPayments(); } catch(e) { showToast('Xato','error'); }
 }
 
 async function rejectPayment(id, userId) {
-  if (!confirm('Rad etishni tasdiqlaysizmi?')) return;
-  try {
-    await fetch('/api/admin/payment/reject', {method:'POST',headers:{...h,'Content-Type':'application/json'},body:JSON.stringify({payment_id:id,telegram_id:userId})});
-    showToast('To\'lov rad etildi');
-    loadDashboard();
-  } catch(e){ showToast('Xato','error'); }
+  if (!confirm("Rad etishni tasdiqlaysizmi?")) return;
+  try { await fetch('/api/admin/payment/reject', {method:'POST',headers:{...h(),'Content-Type':'application/json'},body:JSON.stringify({payment_id:id,telegram_id:userId})}); showToast("Tolov rad etildi"); loadDashboard(); loadPayments(); } catch(e) { showToast('Xato','error'); }
 }
 
-// ── USERS ──────────────────────────────────────
 async function loadUsers() {
   try {
-    const res = await fetch('/api/admin/users', {headers:h});
+    const res = await fetch('/api/admin/users', {headers: h()});
     const users = await res.json();
-    const tb = document.getElementById('users-table');
-    if (!users.length) { tb.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px;">Yo\'q</td></tr>'; return; }
-    tb.innerHTML = users.map(u=>`
-      <tr>
-        <td>#${u.id}</td>
-        <td>${u.telegram_id}</td>
-        <td><b>${(u.balance||0).toLocaleString()}</b> so'm</td>
-        <td>${u.session_string?'<span style="color:var(--success)">✅ Ulangan</span>':'<span style="color:var(--muted)">❌ Yo\'q</span>'}</td>
-        <td>${u.order_count||0} ta</td>
-        <td><button class="btn btn-edit" onclick="openEditBalance(${u.id},${u.telegram_id},${u.balance||0})">✏️ Balans</button></td>
-      </tr>`).join('');
-  } catch(e){}
+    const el = document.getElementById('users-list');
+    if (!users.length) { el.innerHTML = '<div class="empty"><div class="e-icon">👥</div><div class="e-text">Foydalanuvchilar yoq</div></div>'; return; }
+    el.innerHTML = users.map(u => `
+      <div class="user-card">
+        <div class="user-avatar">${String(u.telegram_id).slice(-2)}</div>
+        <div class="user-info">
+          <div class="u-id">👤 ${u.telegram_id}</div>
+          <div class="u-bal">💰 ${(u.balance||0).toLocaleString()} som</div>
+          <div class="u-status">${u.session_string?'🟢 Akkaunt ulangan':'🔴 Akkaunt yoq'} • ${u.order_count||0} buyurtma</div>
+        </div>
+        <button class="btn btn-edit" style="flex:none;padding:10px 12px;" onclick="openEditBalance(${u.id},${u.telegram_id},${u.balance||0})">✏️</button>
+      </div>`).join('');
+  } catch(e) {}
 }
 
-function openEditBalance(id, telegramId, currentBal) {
-  document.getElementById('edit-user-id').value = telegramId;
-  document.getElementById('edit-amount').value = currentBal;
-  document.getElementById('edit-modal').classList.add('open');
-}
+function openEditBalance(id, telegramId, currentBal) { document.getElementById('edit-user-id').value = telegramId; document.getElementById('edit-amount').value = currentBal; document.getElementById('edit-modal').classList.add('open'); }
 function closeModal() { document.getElementById('edit-modal').classList.remove('open'); }
 
 async function saveBalance() {
   const tid = document.getElementById('edit-user-id').value;
   const amt = parseInt(document.getElementById('edit-amount').value);
-  try {
-    await fetch('/api/admin/user/balance', {method:'POST',headers:{...h,'Content-Type':'application/json'},body:JSON.stringify({telegram_id:parseInt(tid),amount:amt})});
-    showToast('✅ Balans yangilandi');
-    closeModal(); loadUsers();
-  } catch(e){ showToast('Xato','error'); }
+  try { await fetch('/api/admin/user/balance', {method:'POST',headers:{...h(),'Content-Type':'application/json'},body:JSON.stringify({telegram_id:parseInt(tid),amount:amt})}); showToast('✅ Balans yangilandi'); closeModal(); loadUsers(); } catch(e) { showToast('Xato','error'); }
 }
 
-// ── ORDERS ─────────────────────────────────────
 async function loadAdminOrders() {
   try {
-    const res = await fetch('/api/admin/orders', {headers:h});
+    const res = await fetch('/api/admin/orders', {headers: h()});
     const orders = await res.json();
-    const tb = document.getElementById('orders-table');
-    const smap = {pending:'b-pending',processing:'b-processing',completed:'b-completed'};
-    const stxt = {pending:'⏳ Kutilmoqda',processing:'🔄 Qidirilmoqda',completed:'✅ Bajarildi'};
-    tb.innerHTML = orders.map(o=>`
-      <tr>
-        <td>#${o.id}</td>
-        <td>${o.telegram_id}</td>
-        <td><b>${o.category}</b></td>
-        <td>${o.registered_count}/${o.quantity}</td>
-        <td>${(o.price||0).toLocaleString()} so'm</td>
-        <td><span class="badge ${smap[o.status]||''}">${stxt[o.status]||o.status}</span></td>
-      </tr>`).join('');
-  } catch(e){}
+    const el = document.getElementById('orders-list');
+    if (!orders.length) { el.innerHTML = '<div class="empty"><div class="e-icon">📋</div><div class="e-text">Buyurtmalar yoq</div></div>'; return; }
+    const sTxt = {pending:'⏳ Kutilmoqda', processing:'🔄 Qidirilmoqda', completed:'✅ Bajarildi'};
+    const sCls = {pending:'b-pending', processing:'b-processing', completed:'b-completed'};
+    el.innerHTML = orders.map(o => `
+      <div class="order-card">
+        <div class="o-top"><div class="o-cat">📂 ${o.category}</div><span class="badge ${sCls[o.status]||'b-pending'}">${sTxt[o.status]||o.status}</span></div>
+        <div class="o-meta">👤 ${o.telegram_id} • ${o.registered_count}/${o.quantity} band • ${(o.price||0).toLocaleString()} som</div>
+      </div>`).join('');
+  } catch(e) {}
 }
 
-// ── STATS ──────────────────────────────────────
-async function loadStats() {
-  try {
-    const res = await fetch('/api/admin/stats', {headers:h});
-    const d = await res.json();
-    drawChart('orders-chart', d.daily_labels||[], d.daily_orders||[], '#06b6d4', 'Buyurtmalar');
-    drawChart('users-chart', d.daily_labels||[], d.daily_users||[], '#10b981', 'Yangi foydalanuvchilar');
-  } catch(e){}
-}
-
-// ── SETTINGS ───────────────────────────────────
 async function loadSettings() {
-  try {
-    const res = await fetch('/api/admin/settings', {headers:h});
-    const d = await res.json();
-    document.getElementById('set-card').value = d.payment_card || '';
-    document.getElementById('set-channel').value = d.payment_channel_id || '';
-    document.getElementById('set-price').value = d.username_price || '5000';
-  } catch(e){}
+  try { const res = await fetch('/api/admin/settings', {headers: h()}); const d = await res.json(); document.getElementById('set-card').value = d.payment_card||''; document.getElementById('set-channel').value = d.payment_channel_id||''; document.getElementById('set-price').value = d.username_price||'5000'; } catch(e) {}
 }
 
 async function saveSettings() {
-  const data = {
-    payment_card: document.getElementById('set-card').value,
-    payment_channel_id: document.getElementById('set-channel').value,
-    username_price: document.getElementById('set-price').value
-  };
-  try {
-    await fetch('/api/admin/settings', {
-      method: 'POST', headers: {...h, 'Content-Type': 'application/json'},
-      body: JSON.stringify(data)
-    });
-    showToast('✅ Sozlamalar saqlandi');
-  } catch(e){ showToast('Xato yuz berdi','error'); }
+  const data = {payment_card:document.getElementById('set-card').value, payment_channel_id:document.getElementById('set-channel').value, username_price:document.getElementById('set-price').value};
+  try { await fetch('/api/admin/settings', {method:'POST',headers:{...h(),'Content-Type':'application/json'},body:JSON.stringify(data)}); showToast('✅ Sozlamalar saqlandi'); } catch(e) { showToast('Xato yuz berdi','error'); }
 }
 
-// ── CHART ──────────────────────────────────────
 const charts = {};
 function drawChart(id, labels, data, color, label) {
   if (charts[id]) charts[id].destroy();
   const ctx = document.getElementById(id).getContext('2d');
-  charts[id] = new Chart(ctx, {
-    type:'line',
-    data:{
-      labels,
-      datasets:[{label, data, borderColor:color, backgroundColor:color+'22',
-        tension:0.4, fill:true, pointBackgroundColor:color, pointRadius:4}]
-    },
-    options:{
-      responsive:true,
-      plugins:{legend:{display:false}},
-      scales:{
-        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#64748b'}},
-        y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#64748b'}}
-      }
-    }
-  });
+  charts[id] = new Chart(ctx, {type:'line', data:{labels, datasets:[{label, data, borderColor:color, backgroundColor:color+'22', tension:0.4, fill:true, pointBackgroundColor:color, pointRadius:4}]}, options:{responsive:true, plugins:{legend:{display:false}}, scales:{x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#64748b',font:{size:10}}}, y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#64748b',font:{size:10}}}}}});
 }
 
-// ── TOAST ──────────────────────────────────────
-function showToast(msg, type='success') {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.className = `toast show ${type}`;
-  setTimeout(()=>t.classList.remove('show'), 3000);
-}
+function showToast(msg, type='success') { const t = document.getElementById('toast'); t.textContent = msg; t.className = `toast show ${type}`; setTimeout(()=>t.classList.remove('show'), 3000); }
 
 checkAuth();
 </script>
