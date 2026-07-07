@@ -144,21 +144,45 @@ async def deduct_balance(telegram_id, amount):
 # ─── USERNAME GENERATOR ───────────────────────
 def generate_usernames(base_word: str, limit: int = 200) -> list:
     base = base_word.lower().replace(" ", "").replace("@", "")
+    
+    uz_names = ["aziza", "malika", "sevinch", "madina", "shahzoda", "shohruh", "sardor", "jasur", "bekzod", 
+                "doston", "alisher", "umid", "jamshid", "sherzod", "nodir", "farhod", "rustam", "dilshod",
+                "murod", "oybek", "sanjar", "bobur", "akbar", "asilbek", "islom", "abdulloh", "muhammad",
+                "gulnoza", "shahnoza", "dilnoza", "feruza", "nilufar", "laylo", "shirin", "guzal", "umida",
+                "aziz", "bek", "shox", "ali", "vali", "hasan", "husan", "fotima", "zuhra", "behruz"]
+    uz_surnames = ["olimov", "karimov", "abdullayev", "rahimov", "umarov", "usmonov", "aliyev", 
+                   "qodirov", "yuldashev", "xusanov", "olimova", "karimova", "abdullayeva", "rahimova",
+                   "valiyev", "valiyeva", "tolipov", "qosimov", "jumayev"]
+
     suffixes = ["chi", "lar", "lash", "im", "iy", "uz", "go",
                 "uzb", "pro", "bot", "er", "jon", "bek", "off",
-                "official", "real", "hub", "zone", "net", "city"]
+                "official", "real", "hub", "zone", "net", "city",
+                "xon", "boy", "mirza", "xoja", "zoda", "ov", "ova", "yev", "yeva"]
     prefixes = ["uz", "the", "my", "pro", "best", "top", "super",
-                "ultra", "smart", "mega"]
+                "ultra", "smart", "mega", "sayyid", "abu", "mir"]
+    
     results = set()
-    results.add(base)
-    for suf in suffixes:
-        results.add(f"{base}{suf}")
-    for pref in prefixes:
-        results.add(f"{pref}{base}")
-        results.add(f"{pref}_{base}")
-    for suf in suffixes:
-        for pref in prefixes[:4]:
-            results.add(f"{pref}{base}{suf}")
+    bases = [base]
+    
+    if any(x in base for x in ["ism", "name", "familiya", "uzb", "odam", "qiz", "bol"]):
+        bases.extend(uz_names)
+        bases.extend(uz_surnames)
+        for _ in range(20):
+            bases.append(random.choice(uz_names) + random.choice(uz_surnames))
+            bases.append(random.choice(uz_names) + "_" + random.choice(uz_surnames))
+
+    for b in bases:
+        results.add(b)
+        for suf in suffixes:
+            results.add(f"{b}{suf}")
+        for pref in prefixes:
+            results.add(f"{pref}{b}")
+            results.add(f"{pref}_{b}")
+        if len(bases) < 10: # Faqat oddiy so'z uchun chuqur kombinatsiya
+            for suf in suffixes:
+                for pref in prefixes[:4]:
+                    results.add(f"{pref}{b}{suf}")
+
     # Faqat 5+ harflilarni va maximal 32 ta harflilarni olamiz
     valid = [u for u in results if 5 <= len(u) <= 32]
     random.shuffle(valid)
