@@ -190,9 +190,13 @@ def generate_usernames(base_word: str, limit: int = 200) -> list:
                    "qodirov", "yuldashev", "xusanov", "olimova", "karimova", "abdullayeva", "rahimova",
                    "valiyev", "valiyeva", "tolipov", "qosimov", "jumayev"]
 
-    # Premium qisqa qo'shimchalar
+    # Qisqa va klassik qo'shimchalar
     short_suf = ["uz", "go", "x", "s", "bot", "up", "me", "tm", "io", "ai", "ru", "ok", "hub", "pro", "vip"]
     short_pref = ["i", "e", "v", "x", "uz", "my", "the", "pro", "top"]
+    
+    # Manoli, noyob biznes va premium qo'shimchalar
+    meaningful_suf = ["markazi", "olami", "dunyosi", "maktabi", "uzb", "chilar", "zor", "super", "yulduzlari", "biznes", "market", "shop", "house", "city", "savdo", "savdosi", "store", "online", "live"]
+    meaningful_pref = ["super", "zor", "mega", "yangi", "mening", "bizning", "yosh", "top", "zoor", "milliy", "grand", "gold", "golden", "uzb"]
     
     # Ismlar uchun xos qo'shimchalar
     name_suf_all = ["bek", "jon", "xon", "boy", "zoda", "mirza", "ov", "ova", "yev", "yeva"]
@@ -215,20 +219,34 @@ def generate_usernames(base_word: str, limit: int = 200) -> list:
     for b in bases:
         results.add(b)
         
-        # Agar bu ism/familiya bo'lsa, maxsus o'zbekcha qo'shimchalar
+        # Ismlar/familiyalar mantiqiy qo'shimchalari
         if is_name_cat or b in uz_names or b in uz_surnames:
             for suf in name_suf_all:
                 if any(b.endswith(x) for x in name_suf_all):
-                    continue # Takror qo'shilmasligi uchun qat'iy blok
+                    continue
                 results.add(f"{b}{suf}")
         
-        # Umumiy premium qisqa qo'shimchalar
+        # Qisqa qo'shimchalar
         for suf in short_suf:
             results.add(f"{b}{suf}")
             results.add(f"{b}_{suf}")
         for pref in short_pref:
             results.add(f"{pref}{b}")
             results.add(f"{pref}_{b}")
+            
+        # Ma'noli qo'shimchalar (masalan: kino_olami, super_kino, kino_markazi)
+        for suf in meaningful_suf:
+            results.add(f"{b}{suf}")
+            results.add(f"{b}_{suf}")
+        for pref in meaningful_pref:
+            results.add(f"{pref}{b}")
+            results.add(f"{pref}_{b}")
+            
+        # Qo'shaloq noyob kombinatsiyalar (masalan: my_kino_uz, top_kino_olami)
+        for pref in ["my", "top", "uz", "super"]:
+            for suf in ["uz", "pro", "bot", "olami"]:
+                results.add(f"{pref}_{b}_{suf}")
+                results.add(f"{pref}{b}{suf}")
             
         # Unli harflarni tushirib qisqartirish (masalan: biznes -> bznsuz)
         if len(b) > 4:
@@ -239,8 +257,12 @@ def generate_usernames(base_word: str, limit: int = 200) -> list:
                 results.add(f"{no_vowels}uz")
                 results.add(f"{no_vowels}bot")
 
-    # Faqat 5+ harflilarni va maximal 32 ta harflilarni olamiz
-    valid = [u for u in results if 5 <= len(u) <= 32]
+    # Faqat 5+ harflilarni, max 32 harflilarni va Telegram qoidasiga moslarni (ketma-ket __ yo'q) olamiz
+    valid = []
+    for u in results:
+        if 5 <= len(u) <= 32 and "__" not in u and re.match(r'^[a-zA-Z][a-zA-Z0-9_]*[a-zA-Z0-9]$', u):
+            valid.append(u)
+            
     random.shuffle(valid)
     return valid[:limit]
 
