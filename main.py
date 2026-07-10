@@ -55,9 +55,14 @@ async def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 telegram_id INTEGER UNIQUE,
                 balance INTEGER DEFAULT 0,
-                session_string TEXT
+                session_string TEXT,
+                free_searches INTEGER DEFAULT 1
             )
         """)
+        try:
+            await db.execute("ALTER TABLE users ADD COLUMN free_searches INTEGER DEFAULT 1")
+        except Exception:
+            pass
         await db.execute("""
             CREATE TABLE IF NOT EXISTS orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -159,7 +164,10 @@ async def get_user(telegram_id):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("SELECT * FROM users WHERE telegram_id=?", (telegram_id,)) as cur:
-            return await cur.fetchone()
+            row = await cur.fetchone()
+            if row and 'free_searches' not in row.keys():
+                return dict(row, free_searches=1)
+            return dict(row) if row else None
 
 async def create_user(telegram_id):
     async with aiosqlite.connect(DB_PATH) as db:
@@ -633,7 +641,9 @@ async def api_user(init_data: str = ""):
             total_orders = (await c.fetchone())[0]
         async with db.execute("SELECT COUNT(*) FROM registered_usernames ru JOIN orders o ON ru.order_id=o.id WHERE o.telegram_id=?", (tid,)) as c:
             total_usernames = (await c.fetchone())[0]
-    return {"balance": row["balance"] if row else 0, "session_string": bool(row["session_string"]) if row else False,
+    return {"balance": row["balance"] if row else 0, 
+            "free_searches": row.get("free_searches", 1) if row else 1,
+            "session_string": bool(row["session_string"]) if row else False,
             "total_orders": total_orders, "total_usernames": total_usernames}
 
 @app.get("/api/card")
@@ -738,12 +748,17 @@ async def api_search_start(request: Request):
     if not row or not row['session_string']:
         return {"ok": False, "error": "Akkaunt ulanmagan"}
 
-    total_price = qty * 5000
+    total_price = max(0, (qty - row.get('free_searches', 1)) * 5000)
     if (row['balance'] or 0) < total_price:
         return {"ok": False, "error": f"Balans yetarli emas ({total_price:,} so'm kerak)"}
 
-    # Oldindan pulni yechib olamiz
-    await deduct_balance(tid, total_price)
+    # Oldindan pulni va bepul urinishni yechib olamiz
+    if total_price > 0:
+        await deduct_balance(tid, total_price)
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE users SET free_searches = MAX(0, free_searches - ?) WHERE telegram_id = ?", (qty, tid))
+        await db.commit()
 
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
