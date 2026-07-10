@@ -277,12 +277,28 @@
     </div>
 
     <div class="form-group">
-      <label>KATEGORIYA (so'z yoki "ism" kiriting)</label>
-      <input type="text" id="buy-category" placeholder="dastur, kino, ismlar, biznes..." oninput="calcSearchPrice()">
+      <label>QANDAY USERNAME QIDIRAMIZ?</label>
+      <div style="display:flex; gap:10px; margin-bottom:8px;">
+        <button id="btn-cat-short" class="btn btn-outline" style="margin:0; flex:1; font-size:13px; padding:10px;" onclick="setCategory('qisqa')">Qisqa noyob so'z</button>
+        <button id="btn-cat-smart" class="btn btn-primary" style="margin:0; flex:1; font-size:13px; padding:10px;" onclick="setCategory('turli')">Turli ko'rinishdagi</button>
+      </div>
+      <input type="hidden" id="buy-category" value="turli">
       <div style="color:var(--muted);font-size:11px;margin-top:6px;">
-        💡 Bot shu so'zdan yuzlab premium variant yasab, bo'shlarini aniqlaydi
+        💡 Tanlangan yo'nalish bo'yicha yuzlab premium variantlar yasaladi
       </div>
     </div>
+    <script>
+      function setCategory(cat) {
+        document.getElementById('buy-category').value = cat;
+        if(cat === 'qisqa') {
+            document.getElementById('btn-cat-short').className = 'btn btn-primary';
+            document.getElementById('btn-cat-smart').className = 'btn btn-outline';
+        } else {
+            document.getElementById('btn-cat-short').className = 'btn btn-outline';
+            document.getElementById('btn-cat-smart').className = 'btn btn-primary';
+        }
+      }
+    </script>
 
     <div class="form-group">
       <label>NECHTA OLMOQCHISIZ? (1–10)</label>
