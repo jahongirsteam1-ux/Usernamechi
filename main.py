@@ -202,72 +202,91 @@ from bot.words import (
 import random
 import string
 
-def generate_usernames(base_word: str, lang: str = 'uz', limit: int = 300) -> list:
+def generate_usernames(base_word: str, lang: str = 'uz', limit: int = 500) -> list:
     """
-    Sifatli username ro'yxatini yaratadi.
-    Mezonlar:
-      • 5-8 harf (qimmatli diapazon)
-      • Raqam yo'q (asosan) — faqat 'qisqa' rejimda ham yo'q
-      • Bitta mustaqil so'z — ikki so'z yopishtirilmaydi
-      • Oson talaffuz (talaffuz filtri)
-      • Underscore minimal
+    To'liq so'z bazasidan sifatli username ro'yxati.
+    Strategiya:
+      1) Barcha curated so'zlarni to'g'ridan to'g'ri ishlatish (takrorlanmaydi)
+      2) Lug'at (nouns/adjectives) dan qo'shimcha olish
+      3) Premium (5-8 harf, faqat harf) — birinchi
+      4) Qolganlar (raqamli yoki 9-12 harf) — oxirida
     """
-    from bot.words import generate_quality_username, UZ_WORDS, EN_WORDS_COMMON, nouns, adjectives, _is_pronounceable
+    from bot.words import (
+        UZ_MALE_NAMES, UZ_FEMALE_NAMES, UZ_SURNAMES,
+        UZ_WORDS_CLEAN, EN_MALE_NAMES, EN_FEMALE_NAMES,
+        ANIMALS_CLEAN, NATURE_CLEAN, EN_COOL_CLEAN,
+        nouns, adjectives, _is_pronounceable
+    )
 
-    results = set()
     cat = base_word.strip().lower()
-
     TELEGRAM_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]{3,30}[a-zA-Z0-9]$')
 
-    def is_quality(u: str) -> bool:
-        """Sifat filtri: uzunlik, talaffuz, belgilar."""
-        if not (5 <= len(u) <= 32):
-            return False
-        if "__" in u or u.startswith('_') or u.endswith('_'):
-            return False
-        if not TELEGRAM_RE.match(u):
-            return False
-        # Maqsadli diapazon: 5-8 harf (raqamsiz) ustunlik
-        # Lekin raqamli va uzunroq ham chiqsin (pastroq ustuvorlik)
-        return True
+    def valid(u: str) -> bool:
+        u = u.strip().lower()
+        return (5 <= len(u) <= 32
+                and "__" not in u
+                and not u.startswith('_')
+                and not u.endswith('_')
+                and TELEGRAM_RE.match(u) is not None)
 
-    def is_premium(u: str) -> bool:
-        """5-8 harf, faqat harflar (raqam va underscore yo'q) — eng qimmatli."""
+    def premium(u: str) -> bool:
         return u.isalpha() and 5 <= len(u) <= 8
 
-    # Yig'ish
-    target = limit * 5
-    attempts = 0
-    while len(results) < target and attempts < target * 15:
-        attempts += 1
-        if cat == 'qisqa':
-            # Toza bitta so'z, 5-7 harf, raqamsiz
-            if lang == 'uz':
-                pool = [w for w in UZ_WORDS if 5 <= len(w) <= 7]
-            else:
-                pool = [w for w in nouns + EN_WORDS_COMMON if 5 <= len(w) <= 7]
-            if pool:
-                results.add(random.choice(pool))
-        else:
-            results.add(generate_quality_username(lang=lang))
+    # ── 1. CURATED POOL (barcha kategoriyalar) ──
+    if lang == 'uz':
+        curated = list(set(
+            [n for n in UZ_MALE_NAMES   if n.isalpha() and 5 <= len(n) <= 8] +
+            [n for n in UZ_FEMALE_NAMES if n.isalpha() and 5 <= len(n) <= 8] +
+            [n for n in UZ_SURNAMES     if n.isalpha() and 5 <= len(n) <= 8] +
+            UZ_WORDS_CLEAN
+        ))
+    else:  # 'en' yoki boshqa
+        curated = list(set(
+            [n for n in EN_MALE_NAMES   if n.isalpha() and 5 <= len(n) <= 8] +
+            [n for n in EN_FEMALE_NAMES if n.isalpha() and 5 <= len(n) <= 8] +
+            ANIMALS_CLEAN + NATURE_CLEAN + EN_COOL_CLEAN
+        ))
 
-    # Filtrlash va saralash: premium (raqamsiz, 5-8) oldinga
-    premium = []
-    good = []
-    for u in results:
-        if not is_quality(u):
+    random.shuffle(curated)
+
+    # ── 2. LEKSIKON POOL (nouns + adjectives filtrlangan) ──
+    if lang == 'uz':
+        # O'zbek uchun lug'at kam, shuning uchun qisqartirilgan
+        dict_pool = [w for w in nouns if w.isalpha() and 5 <= len(w) <= 7 and _is_pronounceable(w)][:3000]
+    else:
+        dict_pool = [w for w in nouns + adjectives if w.isalpha() and 5 <= len(w) <= 7 and _is_pronounceable(w)]
+    random.shuffle(dict_pool)
+
+    # ── 3. BIRLASHTIRISH VA FILTRLASH ──
+    # 'qisqa' rejim: faqat toza so'zlar (raqamsiz)
+    # 'turli' rejim: curated + leksikon
+
+    if cat == 'qisqa':
+        # Faqat 5-7 harfli toza so'zlar
+        pool = [u for u in curated if u.isalpha() and 5 <= len(u) <= 7]
+        pool += [u for u in dict_pool if 5 <= len(u) <= 7]
+    else:
+        # Curated (premium) + leksikon
+        pool = curated + dict_pool
+
+    # Takrorlanmaslik
+    seen = set()
+    prem_list = []
+    good_list = []
+    for u in pool:
+        u = u.strip().lower()
+        if u in seen or not valid(u):
             continue
-        if is_premium(u):
-            premium.append(u)
+        seen.add(u)
+        if premium(u):
+            prem_list.append(u)
         else:
-            good.append(u)
+            good_list.append(u)
 
-    random.shuffle(premium)
-    random.shuffle(good)
-
-    # Premium birinchi, qolganlari keyin
-    combined = premium + good
+    # Premium birinchi
+    combined = prem_list + good_list
     return combined[:limit]
+
 
 
 # ─── ASOSIY MENYU ─────────────────────────────
