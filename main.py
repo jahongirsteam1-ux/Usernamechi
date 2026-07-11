@@ -202,14 +202,13 @@ from bot.words import (
 import random
 import string
 
-def generate_usernames(base_word: str, lang: str = 'uz', limit: int = 500) -> list:
+def generate_usernames(base_word: str, lang: str = 'uz', limit: int = 2000) -> list:
     """
     To'liq so'z bazasidan sifatli username ro'yxati.
     Strategiya:
-      1) Barcha curated so'zlarni to'g'ridan to'g'ri ishlatish (takrorlanmaydi)
-      2) Lug'at (nouns/adjectives) dan qo'shimcha olish
-      3) Premium (5-8 harf, faqat harf) — birinchi
-      4) Qolganlar (raqamli yoki 9-12 harf) — oxirida
+      1) Lug'at (nouns/adjectives) — 40,000+ so'z, kamyob birinchi
+      2) Curated (ismlar, hayvonlar, tabiat) — mashhur, ko'pi band
+      3) Premium (5-8 harf, faqat harf) birinchi chiqadi
     """
     from bot.words import (
         UZ_MALE_NAMES, UZ_FEMALE_NAMES, UZ_SURNAMES,
@@ -222,17 +221,16 @@ def generate_usernames(base_word: str, lang: str = 'uz', limit: int = 500) -> li
     TELEGRAM_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]{3,30}[a-zA-Z0-9]$')
 
     def valid(u: str) -> bool:
-        u = u.strip().lower()
         return (5 <= len(u) <= 32
                 and "__" not in u
                 and not u.startswith('_')
                 and not u.endswith('_')
-                and TELEGRAM_RE.match(u) is not None)
+                and bool(TELEGRAM_RE.match(u)))
 
-    def premium(u: str) -> bool:
+    def is_premium(u: str) -> bool:
         return u.isalpha() and 5 <= len(u) <= 8
 
-    # ── 1. CURATED POOL (barcha kategoriyalar) ──
+    # ── CURATED POOL ──────────────────────────────
     if lang == 'uz':
         curated = list(set(
             [n for n in UZ_MALE_NAMES   if n.isalpha() and 5 <= len(n) <= 8] +
@@ -240,53 +238,56 @@ def generate_usernames(base_word: str, lang: str = 'uz', limit: int = 500) -> li
             [n for n in UZ_SURNAMES     if n.isalpha() and 5 <= len(n) <= 8] +
             UZ_WORDS_CLEAN
         ))
-    else:  # 'en' yoki boshqa
+    else:
         curated = list(set(
             [n for n in EN_MALE_NAMES   if n.isalpha() and 5 <= len(n) <= 8] +
             [n for n in EN_FEMALE_NAMES if n.isalpha() and 5 <= len(n) <= 8] +
             ANIMALS_CLEAN + NATURE_CLEAN + EN_COOL_CLEAN
         ))
-
     random.shuffle(curated)
 
-    # ── 2. LEKSIKON POOL (nouns + adjectives filtrlangan) ──
+    # ── LEKSIKON POOL (kamyob so'zlar — ko'pi bo'sh chiqadi) ──────
+    # nouns.txt / adjectives.txt dagi barcha 5-8 harfli so'zlar
     if lang == 'uz':
-        # O'zbek uchun lug'at kam, shuning uchun qisqartirilgan
-        dict_pool = [w for w in nouns if w.isalpha() and 5 <= len(w) <= 7 and _is_pronounceable(w)][:3000]
+        dict_pool = [
+            w for w in nouns
+            if w.isalpha() and 5 <= len(w) <= 8 and _is_pronounceable(w)
+        ]
     else:
-        dict_pool = [w for w in nouns + adjectives if w.isalpha() and 5 <= len(w) <= 7 and _is_pronounceable(w)]
+        dict_pool = [
+            w for w in (nouns + adjectives)
+            if w.isalpha() and 5 <= len(w) <= 8 and _is_pronounceable(w)
+        ]
+    # Oxirgi harflari bo'yicha tasodifiy shuffle — kamyoblar boshida
     random.shuffle(dict_pool)
 
-    # ── 3. BIRLASHTIRISH VA FILTRLASH ──
-    # 'qisqa' rejim: faqat toza so'zlar (raqamsiz)
-    # 'turli' rejim: curated + leksikon
-
+    # ── QISQA REJIM: Faqat 5-7 harfli toza so'zlar ───────────────
     if cat == 'qisqa':
-        # Faqat 5-7 harfli toza so'zlar
-        pool = [u for u in curated if u.isalpha() and 5 <= len(u) <= 7]
-        pool += [u for u in dict_pool if 5 <= len(u) <= 7]
+        pool = (
+            [u for u in curated   if u.isalpha() and 5 <= len(u) <= 7] +
+            [u for u in dict_pool if 5 <= len(u) <= 7]
+        )
     else:
-        # Curated (premium) + leksikon
+        # TURLI rejim: barcha pool
         pool = curated + dict_pool
 
-    # Takrorlanmaslik
+    # ── FILTRLASH VA SARALASH ─────────────────────────────────────
     seen = set()
     prem_list = []
     good_list = []
+
     for u in pool:
         u = u.strip().lower()
         if u in seen or not valid(u):
             continue
         seen.add(u)
-        if premium(u):
+        if is_premium(u):
             prem_list.append(u)
         else:
             good_list.append(u)
 
-    # Premium birinchi
     combined = prem_list + good_list
     return combined[:limit]
-
 
 
 # ─── ASOSIY MENYU ─────────────────────────────
@@ -495,7 +496,7 @@ async def cancel_order(call: CallbackQuery):
 async def search_sniper(telegram_id: int, search_id: int, category: str, lang: str = 'uz'):
     """Fon rejimida faqat usernamesni tekshiradi va bazaga yozadi."""
     try:
-        targets = generate_usernames(category, lang=lang, limit=200)
+        targets = generate_usernames(category, lang=lang, limit=2000)
         found_count = 0
         
         user = await get_user(telegram_id)
@@ -519,7 +520,7 @@ async def search_sniper(telegram_id: int, search_id: int, category: str, lang: s
         await client.connect()
 
         for username in targets:
-            if found_count >= 50:  # max 50 ta ko'rsatish
+            if found_count >= 200:  # max 200 ta ko'rsatish
                 break
             try:
                 is_free = await client(CheckUsernameRequest(username=username))
