@@ -185,7 +185,7 @@ async def deduct_balance(telegram_id, amount):
         await db.commit()
 
 # ─── USERNAME GENERATOR ───────────────────────
-from bot.words import generate_smart_username
+from bot.words import generate_smart_username, nouns, adjectives
 import random
 import string
 
@@ -193,11 +193,14 @@ def generate_usernames(base_word: str, limit: int = 200) -> list:
     results = set()
     cat = base_word.strip().lower()
     
+    # Qisqa so'zlarni tayyorlaymiz (5-6 harfli ma'noli so'zlar)
+    short_words = [w for w in nouns + adjectives if 5 <= len(w) <= 6]
+    if not short_words:
+        short_words = ["super", "smart", "tiger", "ninja", "coder", "gamer", "happy", "lucky"]
+    
     while len(results) < limit * 2: # generate more to account for filtering
         if cat == 'qisqa':
-            length = random.randint(5, 6)
-            name = ''.join(random.choice(string.ascii_lowercase) for _ in range(length))
-            results.add(name)
+            results.add(random.choice(short_words))
         else:
             results.add(generate_smart_username())
             
