@@ -599,7 +599,21 @@ async def claim_sniper(bot, telegram_id: int, order_id: int, usernames: list):
                     err_msg = str(inner_e)
                     err_type = type(inner_e).__name__
                     logger.error(f"Claim failed for {username}: {err_type} - {err_msg}")
-                    failed_reasons.append(f"@{username} xatosi: {err_type}")
+                    
+                    if "UserRestricted" in err_type:
+                        human_reason = "Akkauntingiz Telegram tomonidan cheklangan (SpamBlock)"
+                    elif "ChannelsAdminPublicTooMuch" in err_type:
+                        human_reason = "Sizda maksimal 10 ta ommaviy kanal bor (Limit)"
+                    elif "UsernameInvalid" in err_type:
+                        human_reason = "Bu nom Telegram qoidalariga zid yoki auksionda"
+                    elif "UsernameOccupied" in err_type:
+                        human_reason = "Ushbu nom kimgadir tegishli bo'lib ulgurgan"
+                    elif "UsernamePurchaseAvailable" in err_type:
+                        human_reason = "Bu nom Fragment auksionida pulga sotilmoqda"
+                    else:
+                        human_reason = f"Telegram ruxsat bermadi ({err_type})"
+                        
+                    failed_reasons.append(f"@{username} — <b>{human_reason}</b>")
                     
                     if ch:
                         try:
@@ -620,13 +634,23 @@ async def claim_sniper(bot, telegram_id: int, order_id: int, usernames: list):
         
         async with aiosqlite.connect(DB_PATH) as db:
             await db.execute("UPDATE orders SET status='completed' WHERE id=?", (order_id,))
+            
+            # Agar hech narsa olinmagan bo'lsa, pulni to'liq qaytarish (refund)
+            if len(claimed) == 0:
+                cur = await db.execute("SELECT price FROM orders WHERE id=?", (order_id,))
+                order_row = await cur.fetchone()
+                if order_row and order_row[0]:
+                    refund_amount = order_row[0]
+                    await db.execute("UPDATE users SET balance=balance+? WHERE telegram_id=?", (refund_amount, telegram_id))
+                    
             await db.commit()
             
         msg = f"🎉 <b>Buyurtma yakunlandi!</b>\nJami band qilindi: <b>{len(claimed)} ta</b>\n"
         if claimed:
             msg += "\n".join(f"✅ @{u}" for u in claimed)
         else:
-            msg += "❌ Hech qanday nom olinmadi.\n\nSabablari:\n" + "\n".join(failed_reasons)
+            msg += "❌ Hech qanday nom olinmadi.\n\n<b>Sabablari:</b>\n" + "\n".join(failed_reasons)
+            msg += "\n\n<i>To'langan pul balansingizga to'liq qaytarildi (Refund). Boshqa akkaunt bilan urinib ko'ring!</i>"
             
         await bot.send_message(telegram_id, msg, parse_mode="HTML")
     except Exception as e:
