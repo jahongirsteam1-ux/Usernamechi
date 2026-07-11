@@ -1,248 +1,201 @@
 """
-words.py — Username generator uchun keng so'z bazasi
-50,000+ kombinatsiya imkoniyati
+words.py — Sifatli username generator
+Mezonlar:
+  • 5-8 harf (qimmatli diapazon)
+  • Raqamsiz yoki minimal raqam
+  • Bitta tushunarli so'z (ikki so'z yopishtirilmasin)
+  • Oson talaffuz
+  • Underscore minimallashtirilgan
+  • Kamyob lekin ma'noli
 """
 import random
-import string
 import os
 
-# ─── O'ZBEK SO'ZLARI ──────────────────────────────────────────────
-UZ_SHORT = [
-    # Tabiat
-    "oltin", "kumush", "yulduz", "quyosh", "osmon", "bulut", "bahor", "kuzgi",
-    "toshkent", "samarqand", "buxoro", "namangan", "andijon", "fargona",
-    "daryo", "toglar", "sahro", "vodiy", "gullar",
+# ─── SIFAT FILTRI ────────────────────────────────────────────────
+def _is_pronounceable(word: str) -> bool:
+    """
+    So'z uchta ketma-ket undoshsiz va uchta ketma-ket unli bo'lmasin.
+    """
+    vowels = set('aeiou')
+    cons_run = 0
+    vowel_run = 0
+    for ch in word.lower():
+        if ch in vowels:
+            cons_run = 0
+            vowel_run += 1
+            if vowel_run > 3:
+                return False
+        elif ch.isalpha():
+            vowel_run = 0
+            cons_run += 1
+            if cons_run > 3:
+                return False
+        else:
+            cons_run = 0
+            vowel_run = 0
+    return True
+
+
+# ─── O'ZBEK SO'ZLARI (5-8 harf, ma'noli, oson talaffuz) ──────────
+# Faqat mustaqil so'zlar — ikki so'z yopishtirilmagan
+UZ_WORDS = [
+    # Tabiat / joy
+    "oltin", "kumush", "yulduz", "quyosh", "osmon", "bulut", "bahor",
+    "daryo", "sahro", "vodiy", "toglar", "shamol", "dengiz",
     # Fazilatlar
-    "yaxshi", "kuchli", "aqlli", "doimiy", "sadiq", "botir", "shijoat",
-    "gozal", "shirin", "saxiy", "kamtar", "dono", "yengil",
+    "yaxshi", "kuchli", "aqlli", "sadiq", "botir", "gozal", "shirin",
+    "saxiy", "kamtar", "dono", "yengil", "jasur", "ulug",
     # Hayot
-    "hayot", "baxt", "orzu", "vatan", "yurak", "sevgi", "shodlik",
-    "mehnat", "bilim", "ustoz", "olim", "zafar", "nurul", "shuhrat",
-    "yigit", "qizil", "qozon", "mehriban", "ulug", "jasur",
-    # Texnologiya / zamonaviy
-    "raqamli", "tezkor", "yangi", "xabar", "hamkor", "savdo", "biznes",
-    "daromad", "invest", "kredit", "moliya", "kapital", "bozor", "optom",
-    # Ismlar / laqamlar
-    "sarvar", "jahon", "alisher", "temur", "bobur", "mirzo", "farukh",
-    "sherzod", "jasur", "ulugbek", "dilshod", "mansur", "sanjar", "ravshan",
-    "kamol", "sirojiddin", "husan", "islom", "zafarjon", "asilbek",
-    # Turli
-    "doira", "chiroy", "zamon", "maktab", "dunyo", "galaba", "murod",
-    "hamid", "bahrom", "nurillo", "sulton", "shahzod", "behruz", "saidakbar",
+    "hayot", "baxt", "orzu", "vatan", "yurak", "sevgi", "zafar",
+    "shuhrat", "bilim", "mehnat", "galaba", "murod", "chiroy",
+    # Ismlar (5-8 harf)
+    "sarvar", "jahon", "temur", "bobur", "mirzo", "farukh",
+    "sherzod", "jasur", "dilshod", "mansur", "sanjar", "ravshan",
+    "kamol", "husan", "islom", "shahzod", "behruz", "bahrom",
+    "nurillo", "sulton", "hamid", "asilbek", "mukhlis",
+    # Zamonaviy / brend
+    "tezkor", "yangi", "xabar", "hamkor", "savdo", "kapital",
+    "bozor", "raqam", "zamon", "maktab", "dunyo",
+    # Shahарlar (5-8 harf)
+    "toshkent", "buxoro", "namangan", "andijon", "fargona",
 ]
 
-UZ_PREFIXES = [
-    "uz", "uzb", "real", "vip", "top", "best", "pro", "mega",
-    "elite", "smart", "super", "mr", "dr", "sir", "big", "true",
-    "xon", "bek", "mir", "nur", "ali", "jan",
+# ─── INGLIZCHA SO'ZLAR (5-8 harf, lug'atda bor, oson talaffuz) ──
+# Bitta real ingliz so'zi — gluing yo'q
+
+EN_WORDS_COMMON = [
+    # Hayvonlar
+    "falcon", "raven", "viper", "cobra", "titan", "eagle",
+    "lynx", "panda", "tiger", "rhino", "bison", "otter",
+    "moose", "crane", "swift", "robin",
+    # Tabiat
+    "storm", "frost", "ember", "comet", "lunar", "solar",
+    "ridge", "canyon", "summit", "glacier", "torrent",
+    # Texnologiya / brend
+    "pixel", "vector", "cipher", "kernel", "socket", "relay",
+    "lambda", "tensor", "proxy", "cache", "script",
+    # Xarakter / laqam
+    "ghost", "shadow", "ranger", "hunter", "outlaw", "nomad",
+    "archer", "knight", "herald", "rogue", "maverick",
+    # Fazilatlar / sifat (yolg'iz so'z sifatida username bo'la oladi)
+    "vivid", "stark", "brisk", "crisp", "deft", "bold",
+    "brave", "sleek", "prime", "swift", "blaze", "surge",
+    # Iqtisodiy / biznes
+    "venture", "nexus", "beacon", "anchor", "bridge", "harbor",
+    "signal", "source", "forge", "atlas", "vault",
+    # O'yin / esports
+    "clutch", "frenzy", "lethal", "turbo", "ranked",
+    # Rang
+    "cobalt", "amber", "silver", "ivory", "ebony", "onyx",
+    "violet", "indigo", "scarlet", "crimson",
 ]
 
-UZ_SUFFIXES = [
-    "uz", "uzb", "bot", "shop", "pro", "biz", "media", "hub",
-    "team", "group", "net", "official", "real", "tv", "info",
-    "brand", "zone", "club", "uz01", "007",
-]
+EN_WORDS_5 = [w for w in EN_WORDS_COMMON if len(w) == 5]
+EN_WORDS_6 = [w for w in EN_WORDS_COMMON if len(w) == 6]
+EN_WORDS_7 = [w for w in EN_WORDS_COMMON if len(w) == 7]
+EN_WORDS_8 = [w for w in EN_WORDS_COMMON if len(w) == 8]
 
-# ─── INGLIZCHA SO'ZLAR ────────────────────────────────────────────
-EN_PREFIXES = [
-    "the", "my", "your", "top", "best", "super", "pro", "real",
-    "vip", "mega", "elite", "smart", "dark", "light", "alpha", "beta",
-    "ultra", "hyper", "xtra", "new", "old", "big", "tiny", "micro",
-    "neo", "max", "main", "pure", "prime", "swift",
-]
-
-EN_SUFFIXES = [
-    "hub", "tech", "dev", "pro", "app", "net", "web", "io",
-    "bot", "ai", "lab", "now", "go", "hq", "plus", "spot",
-    "store", "zone", "base", "point", "works", "ly", "ify",
-    "media", "team", "crew", "official", "real",
-]
-
-# Mashxur/cool inglizcha kalit so'zlar
-EN_COOL = [
-    # Hayot/odamlar
-    "ghost", "shadow", "phantom", "cipher", "venom", "raven", "titan",
-    "maverick", "outlaw", "ranger", "hunter", "striker", "blaze", "apex",
-    "echo", "falcon", "cobra", "viper", "panther", "jaguar", "lynx",
-    # Texnologiya
-    "pixel", "vector", "matrix", "quantum", "crypto", "neural", "binary",
-    "script", "kernel", "syntax", "cipher", "daemon", "socket", "redis",
-    "docker", "lambda", "tensor", "async", "proxy", "cache", "relay",
-    # O'yin/esports
-    "ranked", "clutch", "frenzy", "berserk", "dominate", "lethal", "swift",
-    "sniper", "rusher", "lurker", "flanker", "stealthy", "turbo",
-    # Umum cool
-    "vivid", "luxe", "sleek", "stark", "brisk", "crisp", "deft",
-    "keen", "bold", "brave", "calm", "epic", "grit", "zest",
-]
-
-EN_NATURE = [
-    "storm", "thunder", "lightning", "ember", "frost", "blizzard",
-    "comet", "nebula", "orbit", "solar", "lunar", "stellar", "cosmic",
-    "abyss", "summit", "ridge", "canyon", "glacier", "torrent",
-]
-
-EN_COLORS = [
-    "crimson", "scarlet", "azure", "cobalt", "violet", "magenta",
-    "amber", "golden", "silver", "ivory", "ebony", "onyx",
-]
-
-EN_NUMBERS = list(range(1, 10)) + list(range(10, 100, 7)) + [100, 101, 7, 99, 777, 404, 42]
-
-# ─── FAYL DAN LEKSIKON ───────────────────────────────────────────
+# ─── FAYLDAN YUKLANADIGAN SO'ZLAR ────────────────────────────────
 adjectives = []
 nouns = []
 
 try:
     adj_path = os.path.join(os.path.dirname(__file__), 'adjectives.txt')
     with open(adj_path, 'r', encoding='utf-8') as f:
+        # Faqat 5-8 harfli, sof harf, oson talaffuz qilinadigan
         adjectives = [
-            line.strip().lower() for line in f
-            if line.strip().isalpha() and 4 <= len(line.strip()) <= 7
+            w for w in (line.strip().lower() for line in f)
+            if w.isalpha() and 5 <= len(w) <= 8 and _is_pronounceable(w)
         ]
 except Exception:
-    adjectives = ["cool", "fast", "smart", "dark", "light", "epic", "pure", "bold"]
+    adjectives = ["vivid", "sleek", "stark", "crisp", "swift", "bold", "prime"]
 
 try:
     noun_path = os.path.join(os.path.dirname(__file__), 'nouns.txt')
     with open(noun_path, 'r', encoding='utf-8') as f:
         nouns = [
-            line.strip().lower() for line in f
-            if line.strip().isalpha() and 4 <= len(line.strip()) <= 7
+            w for w in (line.strip().lower() for line in f)
+            if w.isalpha() and 5 <= len(w) <= 8 and _is_pronounceable(w)
         ]
 except Exception:
-    nouns = ["ninja", "coder", "star", "wolf", "lion", "eagle", "bear", "hawk"]
+    nouns = ["ghost", "storm", "eagle", "tiger", "falcon", "raven", "cobra"]
 
 
-def generate_smart_username(lang: str = None) -> str:
+# ─── ASOSIY GENERATOR ────────────────────────────────────────────
+def generate_quality_username(lang: str = None) -> str:
     """
-    12 xil rejim bilan 50,000+ noyob username kombinatsiyasi.
-    lang='uz' => o'zbek so'zlari, lang='en' => inglizcha, None => aralash
+    Mezonlarga mos bitta sifatli username:
+    - 5-8 harf
+    - Bitta so'z (yoki juda tabiiy juftlik)
+    - Raqam yo'q (asosiy holat)
+    - Underscore yo'q (asosiy holat)
+    - Oson talaffuz
     """
     if lang == 'uz':
-        mode = random.choice([
-            "uz_pure",        # yulduz
-            "uz_prefix",      # xon_yulduz
-            "uz_suffix",      # yulduz_pro
-            "uz_two",         # oltin_yulduz
-            "uz_number",      # yulduz07
-            "uz_adj_noun",    # smart + o'zbek
-        ])
+        strategy = random.choices(
+            ["uz_pure", "uz_pure", "uz_lug'at"],
+            weights=[60, 30, 10], k=1
+        )[0]
     elif lang == 'en':
-        mode = random.choice([
-            "en_adj_noun",    # darkwolf
-            "en_prefix_cool", # theghostdev
-            "en_cool_suffix", # ghosthub
-            "en_noun_num",    # wolf42
-            "en_cool_adj",    # ghostswift
-            "en_color_noun",  # crimsonwolf
-            "en_nature",      # storm + coder
-            "en_two_cool",    # ghostshadow
-        ])
+        strategy = random.choices(
+            ["en_curated", "en_curated", "en_dict", "en_dict_adj"],
+            weights=[40, 30, 20, 10], k=1
+        )[0]
     else:
-        mode = random.choice([
-            "uz_pure", "uz_prefix", "uz_suffix", "uz_two", "uz_number",
-            "en_adj_noun", "en_prefix_cool", "en_cool_suffix", "en_noun_num",
-            "en_cool_adj", "en_color_noun", "en_nature", "en_two_cool",
-        ])
+        strategy = random.choices(
+            ["uz_pure", "en_curated", "en_dict", "en_dict_adj", "uz_lug'at"],
+            weights=[25, 30, 25, 15, 5], k=1
+        )[0]
 
-    # ── O'ZBEK REJIMLAR ──
-    if mode == "uz_pure":
-        return random.choice(UZ_SHORT)
+    if strategy == "uz_pure":
+        # Toza o'zbek so'zi, 5-8 harf
+        pool = [w for w in UZ_WORDS if 5 <= len(w) <= 8]
+        return random.choice(pool) if pool else random.choice(UZ_WORDS)
 
-    elif mode == "uz_prefix":
-        w = random.choice(UZ_SHORT)
-        pref = random.choice(UZ_PREFIXES)
-        sep = random.choice(["_", ""])
-        return f"{pref}{sep}{w}"
+    elif strategy == "uz_lug'at":
+        # nouns/adjectives lug'atidan o'zbek-yaqin so'z (aslida ingliz lug'at)
+        pool = [w for w in nouns if 5 <= len(w) <= 7]
+        return random.choice(pool) if pool else random.choice(UZ_WORDS)
 
-    elif mode == "uz_suffix":
-        w = random.choice(UZ_SHORT)
-        suf = random.choice(UZ_SUFFIXES)
-        sep = random.choice(["_", ""])
-        return f"{w}{sep}{suf}"
+    elif strategy == "en_curated":
+        # Eng sifatli insoniy tanlangan ingliz so'zlari
+        pool = EN_WORDS_5 + EN_WORDS_6 + EN_WORDS_7
+        # 6 harflilar biroz ustunroq (optimal uzunlik)
+        weighted = EN_WORDS_6 * 3 + EN_WORDS_5 * 2 + EN_WORDS_7 * 2 + EN_WORDS_8
+        return random.choice(weighted) if weighted else random.choice(EN_WORDS_COMMON)
 
-    elif mode == "uz_two":
-        w1 = random.choice(UZ_SHORT)
-        w2 = random.choice(UZ_SHORT)
-        if w1 == w2:
-            w2 = random.choice(UZ_PREFIXES)
-        sep = random.choice(["_", ""])
-        return f"{w1}{sep}{w2}"
+    elif strategy == "en_dict":
+        # Lug'atdan sifatli noun
+        pool = [w for w in nouns if 5 <= len(w) <= 7]
+        return random.choice(pool) if pool else random.choice(EN_WORDS_COMMON)
 
-    elif mode == "uz_number":
-        w = random.choice(UZ_SHORT)
-        n = random.choice(EN_NUMBERS)
-        return f"{w}{n}"
+    elif strategy == "en_dict_adj":
+        # Lug'atdan sifatli adjective
+        pool = [w for w in adjectives if 5 <= len(w) <= 7]
+        return random.choice(pool) if pool else random.choice(EN_WORDS_COMMON)
 
-    elif mode == "uz_adj_noun":
-        adj = random.choice(adjectives) if adjectives else "smart"
-        w = random.choice(UZ_SHORT)
-        sep = random.choice(["_", ""])
-        return f"{adj}{sep}{w}"
-
-    # ── INGLIZCHA REJIMLAR ──
-    elif mode == "en_adj_noun":
-        adj = random.choice(adjectives) if adjectives else "dark"
-        noun = random.choice(nouns) if nouns else "wolf"
-        sep = random.choice(["_", ""])
-        return f"{adj}{sep}{noun}"
-
-    elif mode == "en_prefix_cool":
-        pref = random.choice(EN_PREFIXES)
-        cool = random.choice(EN_COOL)
-        sep = random.choice(["_", ""])
-        return f"{pref}{sep}{cool}"
-
-    elif mode == "en_cool_suffix":
-        cool = random.choice(EN_COOL)
-        suf = random.choice(EN_SUFFIXES)
-        sep = random.choice(["_", ""])
-        return f"{cool}{sep}{suf}"
-
-    elif mode == "en_noun_num":
-        noun = random.choice(nouns + EN_COOL)
-        n = random.choice(EN_NUMBERS)
-        return f"{noun}{n}"
-
-    elif mode == "en_cool_adj":
-        cool = random.choice(EN_COOL)
-        adj = random.choice(adjectives + ["bold", "swift", "dark", "pure"])
-        sep = random.choice(["_", ""])
-        return f"{cool}{sep}{adj}"
-
-    elif mode == "en_color_noun":
-        color = random.choice(EN_COLORS)
-        noun = random.choice(nouns + EN_COOL)
-        sep = random.choice(["_", ""])
-        return f"{color}{sep}{noun}"
-
-    elif mode == "en_nature":
-        nat = random.choice(EN_NATURE)
-        cool = random.choice(EN_COOL + nouns[:200] if nouns else EN_COOL)
-        sep = random.choice(["_", ""])
-        return f"{nat}{sep}{cool}"
-
-    elif mode == "en_two_cool":
-        c1 = random.choice(EN_COOL)
-        c2 = random.choice(EN_COOL + EN_NATURE)
-        if c1 == c2:
-            c2 = random.choice(EN_SUFFIXES)
-        sep = random.choice(["_", ""])
-        return f"{c1}{sep}{c2}"
-
-    # fallback
-    return f"{random.choice(EN_COOL)}{random.randint(1, 99)}"
+    return random.choice(EN_WORDS_COMMON)
 
 
-# Legacy compat
-PREFIXES = EN_PREFIXES
-SUFFIXES = EN_SUFFIXES
+# ─── GENERATE USERNAMES (asosiy funksiya) ─────────────────────────
+def generate_smart_username(lang: str = None) -> str:
+    """generate_quality_username uchun alias (legacy)"""
+    return generate_quality_username(lang=lang)
+
+
+# ─── LEGACY COMPAT ───────────────────────────────────────────────
+UZ_SHORT = UZ_WORDS  # backward compat
+UZ_PREFIXES = []     # endi ishlatilmaydi
+UZ_SUFFIXES = []
+EN_PREFIXES = []
+EN_COOL = EN_WORDS_COMMON
+EN_NUMBERS = []
+
 CATEGORIES = {
-    "biznes": ["savdo", "biznes", "tijorat", "sotuv", "invest", "bazar", "trade"],
-    "texnologiya": ["tech", "dev", "coder", "cyber", "web", "app", "code", "data"],
-    "gaming": ["gamer", "play", "esports", "sniper", "ninja", "zone", "arena"],
-    "lifestyle": ["life", "style", "sport", "blog", "vlog", "media", "tv"],
+    "biznes": ["savdo", "biznes", "kapital", "invest", "bozor"],
+    "texnologiya": ["cipher", "kernel", "vector", "socket", "pixel"],
+    "gaming": ["clutch", "ranked", "frenzy", "lethal", "turbo"],
+    "lifestyle": ["vivid", "prime", "sleek", "surge", "blaze"],
 }
 
 def get_base_words():

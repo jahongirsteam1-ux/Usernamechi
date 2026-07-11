@@ -191,62 +191,83 @@ async def deduct_balance(telegram_id, amount):
 
 # ─── USERNAME GENERATOR ───────────────────────
 from bot.words import (
-    generate_smart_username, nouns, adjectives,
-    UZ_SHORT, UZ_PREFIXES, UZ_SUFFIXES,
-    EN_PREFIXES, EN_COOL, EN_NUMBERS,
+    generate_smart_username, generate_quality_username,
+    nouns, adjectives,
+    UZ_WORDS, UZ_SHORT,
+    EN_WORDS_COMMON, EN_COOL,
+    UZ_PREFIXES, UZ_SUFFIXES,
+    EN_PREFIXES, EN_NUMBERS,
+    _is_pronounceable,
 )
 import random
 import string
 
 def generate_usernames(base_word: str, lang: str = 'uz', limit: int = 300) -> list:
     """
-    Kategoriya va tilga qarab username ro'yxatini yaratadi.
-    limit=300 — filtrlashdan keyin kamida 50+ noyob natija bo'lsin.
+    Sifatli username ro'yxatini yaratadi.
+    Mezonlar:
+      • 5-8 harf (qimmatli diapazon)
+      • Raqam yo'q (asosan) — faqat 'qisqa' rejimda ham yo'q
+      • Bitta mustaqil so'z — ikki so'z yopishtirilmaydi
+      • Oson talaffuz (talaffuz filtri)
+      • Underscore minimal
     """
+    from bot.words import generate_quality_username, UZ_WORDS, EN_WORDS_COMMON, nouns, adjectives, _is_pronounceable
+
     results = set()
     cat = base_word.strip().lower()
 
-    # Qisqa so'zlar bazasi (lang ga qarab)
-    if lang == 'uz':
-        short_pool = list(UZ_SHORT)
-    else:
-        short_pool = [w for w in nouns + adjectives if 5 <= len(w) <= 6]
-        if not short_pool:
-            short_pool = EN_COOL[:30]
+    TELEGRAM_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]{3,30}[a-zA-Z0-9]$')
 
-    target = limit * 3  # filtrlash uchun ko'proq yig'amiz
+    def is_quality(u: str) -> bool:
+        """Sifat filtri: uzunlik, talaffuz, belgilar."""
+        if not (5 <= len(u) <= 32):
+            return False
+        if "__" in u or u.startswith('_') or u.endswith('_'):
+            return False
+        if not TELEGRAM_RE.match(u):
+            return False
+        # Maqsadli diapazon: 5-8 harf (raqamsiz) ustunlik
+        # Lekin raqamli va uzunroq ham chiqsin (pastroq ustuvorlik)
+        return True
 
+    def is_premium(u: str) -> bool:
+        """5-8 harf, faqat harflar (raqam va underscore yo'q) — eng qimmatli."""
+        return u.isalpha() and 5 <= len(u) <= 8
+
+    # Yig'ish
+    target = limit * 5
     attempts = 0
-    while len(results) < target and attempts < target * 10:
+    while len(results) < target and attempts < target * 15:
         attempts += 1
         if cat == 'qisqa':
-            # Toza qisqa so'z yoki so'z+raqam
-            w = random.choice(short_pool)
-            choice = random.random()
-            if choice < 0.5:
-                results.add(w)
-            elif choice < 0.75:
-                results.add(f"{w}{random.randint(1, 99)}")
+            # Toza bitta so'z, 5-7 harf, raqamsiz
+            if lang == 'uz':
+                pool = [w for w in UZ_WORDS if 5 <= len(w) <= 7]
             else:
-                pref = random.choice(UZ_PREFIXES if lang == 'uz' else EN_PREFIXES)
-                results.add(f"{pref}{w}")
+                pool = [w for w in nouns + EN_WORDS_COMMON if 5 <= len(w) <= 7]
+            if pool:
+                results.add(random.choice(pool))
         else:
-            results.add(generate_smart_username(lang=lang))
+            results.add(generate_quality_username(lang=lang))
 
-    # Telegram qoidasi: 5-32 harf, harf bilan boshlanishi, harf/raqam bilan tugashi,
-    # ketma-ket underscore yo'q
-    TELEGRAM_USERNAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]{3,30}[a-zA-Z0-9]$')
-    valid = []
+    # Filtrlash va saralash: premium (raqamsiz, 5-8) oldinga
+    premium = []
+    good = []
     for u in results:
-        if (5 <= len(u) <= 32
-                and "__" not in u
-                and not u.startswith('_')
-                and not u.endswith('_')
-                and TELEGRAM_USERNAME_RE.match(u)):
-            valid.append(u)
+        if not is_quality(u):
+            continue
+        if is_premium(u):
+            premium.append(u)
+        else:
+            good.append(u)
 
-    random.shuffle(valid)
-    return valid[:limit]
+    random.shuffle(premium)
+    random.shuffle(good)
+
+    # Premium birinchi, qolganlari keyin
+    combined = premium + good
+    return combined[:limit]
 
 
 # ─── ASOSIY MENYU ─────────────────────────────
