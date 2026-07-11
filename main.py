@@ -527,7 +527,7 @@ async def search_sniper(telegram_id: int, search_id: int, category: str, lang: s
                 # ResolveUsernameRequest is much less rate-limited than CheckUsernameRequest
                 await client(ResolveUsernameRequest(username=username))
                 # If no error, it means the username exists -> TAKEN
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(1.2)
             except UsernameNotOccupiedError:
                 # FREE!
                 async with aiosqlite.connect(DB_PATH) as db:
@@ -537,7 +537,7 @@ async def search_sniper(telegram_id: int, search_id: int, category: str, lang: s
                     )
                     await db.commit()
                 found_count += 1
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(1.2)
             except UsernameInvalidError:
                 logger.debug(f"Invalid format (skip): {username}")
             except FloodWaitError as e:
@@ -546,6 +546,8 @@ async def search_sniper(telegram_id: int, search_id: int, category: str, lang: s
                     logger.warning(f"Huge FloodWait {e.seconds}s, stopping search")
                     async with aiosqlite.connect(DB_PATH) as db:
                         await db.execute("UPDATE search_tasks SET status='error_floodwait' WHERE id=?", (search_id,))
+                        # foydalanuvchiga qidiruv uchun pulini/urinishini qaytarish
+                        await db.execute("UPDATE users SET free_searches=free_searches+1 WHERE telegram_id=?", (telegram_id,))
                         await db.commit()
                     await client.disconnect()
                     return
@@ -553,7 +555,7 @@ async def search_sniper(telegram_id: int, search_id: int, category: str, lang: s
                 await asyncio.sleep(e.seconds)
             except Exception as e:
                 logger.error(f"Search loop xato: {type(e).__name__} - {e}")
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(1.5)
                 
         await client.disconnect()
         
