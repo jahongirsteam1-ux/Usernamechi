@@ -214,7 +214,7 @@ def generate_usernames(base_word: str, lang: str = 'uz', limit: int = 2000) -> l
         UZ_MALE_NAMES, UZ_FEMALE_NAMES, UZ_SURNAMES,
         UZ_WORDS_CLEAN, EN_MALE_NAMES, EN_FEMALE_NAMES,
         ANIMALS_CLEAN, NATURE_CLEAN, EN_COOL_CLEAN,
-        nouns, adjectives, _is_pronounceable
+        nouns, adjectives, uz_dict, _is_pronounceable
     )
 
     cat = base_word.strip().lower()
@@ -247,12 +247,9 @@ def generate_usernames(base_word: str, lang: str = 'uz', limit: int = 2000) -> l
     random.shuffle(curated)
 
     # ── LEKSIKON POOL (kamyob so'zlar — ko'pi bo'sh chiqadi) ──────
-    # nouns.txt / adjectives.txt dagi barcha 5-10 harfli so'zlar
     if lang == 'uz':
-        dict_pool = [
-            w for w in nouns
-            if w.isalpha() and 5 <= len(w) <= 10 and _is_pronounceable(w)
-        ]
+        # Haqiqiy O'zbek tili lug'ati (27,000+ so'z)
+        dict_pool = uz_dict.copy()
     else:
         dict_pool = [
             w for w in (nouns + adjectives)

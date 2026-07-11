@@ -542,6 +542,14 @@ try:
 except Exception:
     nouns = ["ghost","storm","eagle","tiger","falcon","raven","cobra"]
 
+uz_dict = []
+try:
+    uz_dict_path = os.path.join(os.path.dirname(__file__), 'uz_words_latin.txt')
+    with open(uz_dict_path, 'r', encoding='utf-8') as f:
+        uz_dict = [w.strip() for w in f if w.strip().isalpha() and 5 <= len(w.strip()) <= 12]
+except Exception:
+    uz_dict = UZ_WORDS_CLEAN
+
 # ════════════════════════════════════════════════════════
 #  GENERATOR
 # ════════════════════════════════════════════════════════
