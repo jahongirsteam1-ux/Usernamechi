@@ -113,9 +113,14 @@ async def init_db():
                 category TEXT,
                 paid_qty INTEGER DEFAULT 1,
                 status TEXT DEFAULT 'searching',
-                created_at REAL DEFAULT (strftime('%s','now'))
+                created_at REAL DEFAULT (strftime('%s','now')),
+                lang TEXT DEFAULT 'uz'
             )
         """)
+        try:
+            await db.execute("ALTER TABLE search_tasks ADD COLUMN lang TEXT DEFAULT 'uz'")
+        except Exception:
+            pass
         await db.execute("""
             CREATE TABLE IF NOT EXISTS search_results (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -189,20 +194,23 @@ from bot.words import generate_smart_username, nouns, adjectives
 import random
 import string
 
-def generate_usernames(base_word: str, limit: int = 200) -> list:
+def generate_usernames(base_word: str, lang: str = 'uz', limit: int = 200) -> list:
     results = set()
     cat = base_word.strip().lower()
     
     # Qisqa so'zlarni tayyorlaymiz (5-6 harfli ma'noli so'zlar)
-    short_words = [w for w in nouns + adjectives if 5 <= len(w) <= 6]
-    if not short_words:
-        short_words = ["super", "smart", "tiger", "ninja", "coder", "gamer", "happy", "lucky"]
+    if lang == 'uz':
+        short_words = ["oltin", "kumush", "yulduz", "yigit", "yaxshi", "kuchli", "bahor", "quyosh", "osmon", "bulut", "orzu", "baxt", "shodlik", "vatan", "xalq", "yurak", "mehnat", "aqlli", "gozal", "shirin", "hayot", "dunyo", "zamon", "maktab", "ustoz", "olim", "bilim", "doira", "chiroy"]
+    else:
+        short_words = [w for w in nouns + adjectives if 5 <= len(w) <= 6]
+        if not short_words:
+            short_words = ["super", "smart", "tiger", "ninja", "coder", "gamer", "happy", "lucky"]
     
     while len(results) < limit * 2: # generate more to account for filtering
         if cat == 'qisqa':
             results.add(random.choice(short_words))
         else:
-            results.add(generate_smart_username())
+            results.add(generate_smart_username(lang=lang))
             
     valid = []
     import re
@@ -416,10 +424,10 @@ async def cancel_order(call: CallbackQuery):
     asyncio.create_task(run_sniper(call.bot, user_id, order_id, cat, qty))
 
 # ─── SNIPER ───────────────────────────────────
-async def search_sniper(telegram_id: int, search_id: int, category: str):
+async def search_sniper(telegram_id: int, search_id: int, category: str, lang: str = 'uz'):
     """Fon rejimida faqat usernamesni tekshiradi va bazaga yozadi."""
     try:
-        targets = generate_usernames(category, limit=200)
+        targets = generate_usernames(category, lang=lang, limit=200)
         found_count = 0
         
         user = await get_user(telegram_id)
@@ -741,6 +749,7 @@ async def api_search_start(request: Request):
         raise HTTPException(403)
     tid = user['id']
     cat = data.get('category','').strip()
+    lang = data.get('lang', 'uz')
     qty = int(data.get('quantity', 1))
     qty = max(1, min(10, qty))  # 1-10 oralig'ida cheklash
 
@@ -765,13 +774,13 @@ async def api_search_start(request: Request):
 
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
-            "INSERT INTO search_tasks (telegram_id, category, paid_qty) VALUES (?, ?, ?)",
-            (tid, cat, qty)
+            "INSERT INTO search_tasks (telegram_id, category, paid_qty, lang) VALUES (?, ?, ?, ?)",
+            (tid, cat, qty, lang)
         )
         search_id = cur.lastrowid
         await db.commit()
 
-    asyncio.create_task(search_sniper(tid, search_id, cat))
+    asyncio.create_task(search_sniper(tid, search_id, cat, lang=lang))
     return {"ok": True, "search_id": search_id, "paid_qty": qty, "charged": total_price}
 
 @app.post("/api/search/refresh")
@@ -781,26 +790,25 @@ async def api_search_refresh(request: Request):
     user = verify_init_data(data.get('init_data',''))
     if not user: raise HTTPException(403)
     tid = user['id']
-    cat = data.get('category','').strip()
-    paid_qty = int(data.get('paid_qty', 1))
-    paid_qty = max(1, min(10, paid_qty))
-
-    if not cat:
-        return {"ok": False, "error": "Kategoriya kiritilmadi"}
+    search_id = int(data.get('search_id', 0))
 
     row = await get_user(tid)
     if not row or not row['session_string']:
         return {"ok": False, "error": "Akkaunt ulanmagan"}
 
     async with aiosqlite.connect(DB_PATH) as db:
-        cur = await db.execute(
-            "INSERT INTO search_tasks (telegram_id, category, paid_qty) VALUES (?, ?, ?)",
-            (tid, cat, paid_qty)
-        )
-        search_id = cur.lastrowid
+        async with db.execute("SELECT category, paid_qty, lang FROM search_tasks WHERE id=? AND telegram_id=?", (search_id, tid)) as c:
+            task = await c.fetchone()
+            if not task:
+                return {"ok": False, "error": "Topilmadi"}
+            cat = task[0]
+            paid_qty = task[1]
+            lang = task[2]
+            
+        await db.execute("UPDATE search_tasks SET status='searching' WHERE id=?", (search_id,))
         await db.commit()
-
-    asyncio.create_task(search_sniper(tid, search_id, cat))
+        
+    asyncio.create_task(search_sniper(tid, search_id, cat, lang=lang))
     return {"ok": True, "search_id": search_id}
 
 @app.get("/api/search/results")

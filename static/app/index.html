@@ -287,6 +287,16 @@
         💡 Tanlangan yo'nalish bo'yicha yuzlab premium variantlar yasaladi
       </div>
     </div>
+    
+    <div class="form-group" id="lang-group">
+      <label>QAYSI TILDA BO'LSIN?</label>
+      <div style="display:flex; gap:10px; margin-bottom:8px;">
+        <button id="btn-lang-uz" class="btn btn-primary" style="margin:0; flex:1; font-size:13px; padding:10px;" onclick="setLang('uz')">O'zbekcha</button>
+        <button id="btn-lang-en" class="btn btn-outline" style="margin:0; flex:1; font-size:13px; padding:10px;" onclick="setLang('en')">Inglizcha</button>
+      </div>
+      <input type="hidden" id="buy-lang" value="uz">
+    </div>
+
     <script>
       function setCategory(cat) {
         document.getElementById('buy-category').value = cat;
@@ -296,6 +306,16 @@
         } else {
             document.getElementById('btn-cat-short').className = 'btn btn-outline';
             document.getElementById('btn-cat-smart').className = 'btn btn-primary';
+        }
+      }
+      function setLang(lang) {
+        document.getElementById('buy-lang').value = lang;
+        if(lang === 'uz') {
+            document.getElementById('btn-lang-uz').className = 'btn btn-primary';
+            document.getElementById('btn-lang-en').className = 'btn btn-outline';
+        } else {
+            document.getElementById('btn-lang-uz').className = 'btn btn-outline';
+            document.getElementById('btn-lang-en').className = 'btn btn-primary';
         }
       }
     </script>
@@ -728,6 +748,7 @@ function calcSearchPrice() {
 
 async function startSearch() {
   const cat = document.getElementById('buy-category').value.trim();
+  const lang = document.getElementById('buy-lang').value;
   const qty = Math.min(10, Math.max(1, parseInt(document.getElementById('buy-qty').value) || 1));
   if (!cat) { showToast('Kategoriya kiriting!','error'); return; }
   if (!userData.session_string) { showToast('Avval akkauntni ulang!','error'); goPage('account'); return; }
@@ -749,7 +770,7 @@ async function startSearch() {
   try {
     const res = await fetch(`${API}/api/search/start`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({init_data: tg.initData, category: cat, quantity: qty})
+      body: JSON.stringify({init_data: tg.initData, category: cat, quantity: qty, lang: lang})
     });
     const d = await res.json();
     if (d.ok) {

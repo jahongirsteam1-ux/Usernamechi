@@ -41,11 +41,16 @@ try:
 except Exception:
     nouns = ["ninja", "coder", "star", "hero", "king", "queen", "wolf", "dragon", "bear", "lion"]
 
-def generate_smart_username():
+def generate_smart_username(lang=None):
     """Juda keng ma'lumotlar bazasidan foydalanib username yaratish"""
     
-    # Randomly decide which type of username to generate
-    mode = random.choice(["uzbek_base", "english_adj_noun", "english_noun_number", "uzbek_hybrid"])
+    if lang == 'uz':
+        mode = random.choice(["uzbek_base", "uzbek_hybrid"])
+    elif lang == 'en':
+        mode = random.choice(["english_adj_noun", "english_noun_number"])
+    else:
+        # Randomly decide which type of username to generate
+        mode = random.choice(["uzbek_base", "english_adj_noun", "english_noun_number", "uzbek_hybrid"])
     
     if mode == "uzbek_base":
         w1 = random.choice(base_words)
