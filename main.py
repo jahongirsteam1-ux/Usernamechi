@@ -574,6 +574,7 @@ async def claim_sniper(bot, telegram_id: int, order_id: int, usernames: list):
         await client.connect()
         
         claimed = []
+        failed_reasons = []
         for username in usernames:
             try:
                 ch = None
@@ -588,16 +589,22 @@ async def claim_sniper(bot, telegram_id: int, order_id: int, usernames: list):
                         await db.execute("UPDATE orders SET registered_count=registered_count+1 WHERE id=?", (order_id,))
                         await db.commit()
                 except Exception as inner_e:
+                    err_msg = str(inner_e)
+                    err_type = type(inner_e).__name__
+                    logger.error(f"Claim failed for {username}: {err_type} - {err_msg}")
+                    failed_reasons.append(f"@{username} xatosi: {err_type}")
+                    
                     if ch:
                         try:
                             await client(DeleteChannelRequest(channel=ch.chats[0].id))
                         except:
                             pass
-                    if "ChannelsAdminPublicTooMuchError" in str(type(inner_e)):
-                        await bot.send_message(telegram_id, "❌ <b>Diqqat:</b> Ommaviy link yaratish limiti tugagan! Jarayon to'xtatildi.", parse_mode="HTML")
+                    if "ChannelsAdminPublicTooMuch" in err_type:
+                        await bot.send_message(telegram_id, "❌ <b>Diqqat:</b> Ommaviy link yaratish limiti tugagan! Telegram ruxsat bermadi.", parse_mode="HTML")
                         break
                 await asyncio.sleep(1)
             except FloodWaitError as e:
+                logger.warning(f"FloodWait during claim: {e.seconds}s")
                 await asyncio.sleep(e.seconds)
             except Exception as e:
                 logger.error(f"Claim xato: {e}")
@@ -608,12 +615,13 @@ async def claim_sniper(bot, telegram_id: int, order_id: int, usernames: list):
             await db.execute("UPDATE orders SET status='completed' WHERE id=?", (order_id,))
             await db.commit()
             
-        await bot.send_message(
-            telegram_id,
-            f"🎉 <b>Buyurtma yakunlandi!</b>\nJami band qilindi: <b>{len(claimed)} ta</b>\n"
-            + ("\n".join(f"✅ @{u}" for u in claimed) if claimed else "❌ Hech qanday nom olinmadi."),
-            parse_mode="HTML"
-        )
+        msg = f"🎉 <b>Buyurtma yakunlandi!</b>\nJami band qilindi: <b>{len(claimed)} ta</b>\n"
+        if claimed:
+            msg += "\n".join(f"✅ @{u}" for u in claimed)
+        else:
+            msg += "❌ Hech qanday nom olinmadi.\n\nSabablari:\n" + "\n".join(failed_reasons)
+            
+        await bot.send_message(telegram_id, msg, parse_mode="HTML")
     except Exception as e:
         logger.error(f"Claim task xato: {e}")
 
