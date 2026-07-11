@@ -212,12 +212,18 @@ def generate_usernames(base_word: str, lang: str = 'uz', limit: int = 200) -> li
         else:
             results.add(generate_smart_username(lang=lang))
             
+    # Telegram qoidasi: 5-32 harf, harf bilan boshlanishi, harf/raqam bilan tugashi,
+    # ketma-ket underscore yo'q
+    TELEGRAM_USERNAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]{3,30}[a-zA-Z0-9]$')
     valid = []
-    import re
     for u in results:
-        if 5 <= len(u) <= 32 and "__" not in u and re.match(r'^[a-zA-Z][a-zA-Z0-9_]*[a-zA-Z0-9]$', u):
+        if (5 <= len(u) <= 32
+                and "__" not in u
+                and not u.startswith('_')
+                and not u.endswith('_')
+                and TELEGRAM_USERNAME_RE.match(u)):
             valid.append(u)
-            
+
     random.shuffle(valid)
     return valid[:limit]
 
@@ -441,29 +447,41 @@ async def search_sniper(telegram_id: int, search_id: int, category: str, lang: s
             
         from telethon import TelegramClient
         from telethon.sessions import StringSession
-        from telethon.errors import FloodWaitError, UsernameOccupiedError
+        from telethon.errors import (
+            FloodWaitError, UsernameOccupiedError,
+            UsernameInvalidError, UsernameNotModifiedError
+        )
         from telethon.tl.functions.account import CheckUsernameRequest
-        
+
         client = TelegramClient(StringSession(session_string), API_ID, API_HASH)
         await client.connect()
-        
+
         for username in targets:
-            if found_count >= 50: # max 50 ta ko'rsatish
+            if found_count >= 50:  # max 50 ta ko'rsatish
                 break
             try:
                 is_free = await client(CheckUsernameRequest(username=username))
                 if is_free:
                     async with aiosqlite.connect(DB_PATH) as db:
-                        await db.execute("INSERT INTO search_results (search_id, username) VALUES (?,?)", (search_id, username))
+                        await db.execute(
+                            "INSERT INTO search_results (search_id, username) VALUES (?,?)",
+                            (search_id, username)
+                        )
                         await db.commit()
                     found_count += 1
-                await asyncio.sleep(1) # FloodWait dan qochish
+                await asyncio.sleep(0.8)  # FloodWait dan qochish
+            except UsernameInvalidError:
+                # Telegram format rad etdi - bu username ni o'tkazib yubor
+                logger.debug(f"Invalid format (skip): {username}")
+            except UsernameNotModifiedError:
+                pass
             except FloodWaitError as e:
+                logger.warning(f"FloodWait {e.seconds}s: {username}")
                 await asyncio.sleep(e.seconds)
             except UsernameOccupiedError:
                 pass
             except Exception as e:
-                logger.error(f"Search xato: {e}")
+                logger.error(f"Search xato ({type(e).__name__}): {e} — {username}")
                 await asyncio.sleep(2)
                 
         await client.disconnect()
@@ -1132,18 +1150,38 @@ async def admin_orders(x_admin_token: str = Header(default="")):
 
 # ─── MAIN ─────────────────────────────────────
 async def main():
+    import signal
+
     await init_db()
     bot = Bot(token=BOT_TOKEN)
     dp  = Dispatcher()
     dp.include_router(router)
     logger.info("🤖 Bot + 🌐 Web ishga tushdi!")
-    
+
     # Orqa fonda monitoring loop ni ishga tushiramiz
-    asyncio.create_task(monitoring_loop(bot))
+    monitoring_task = asyncio.create_task(monitoring_loop(bot))
 
     # Aiogram bot va FastAPI parallel ishlatish
     config = uvicorn.Config(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)), log_level="warning")
     server = uvicorn.Server(config)
+
+    # Graceful shutdown: SIGTERM va SIGINT uchun
+    loop = asyncio.get_event_loop()
+    bg_tasks: list[asyncio.Task] = [monitoring_task]
+
+    async def _shutdown():
+        logger.info("⏹ Graceful shutdown boshlandi...")
+        for t in bg_tasks:
+            t.cancel()
+        await asyncio.gather(*bg_tasks, return_exceptions=True)
+        await bot.session.close()
+        logger.info("✅ Toza to'xtatildi.")
+
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        try:
+            loop.add_signal_handler(sig, lambda: asyncio.create_task(_shutdown()))
+        except NotImplementedError:
+            pass  # Windows da signal_handler ishlamaydi, lekin Railway Linux da ishlaydi
 
     await asyncio.gather(
         dp.start_polling(bot),
