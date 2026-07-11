@@ -493,13 +493,19 @@ EN_COOL_CLEAN = sorted(set(
 #  FILTERED CLEAN VERSIONS
 # ════════════════════════════════════════════════════════
 UZ_WORDS_CLEAN = sorted(set(
-    w.lower() for w in UZ_WORDS_ALL
-    if w.isalpha() and 5 <= len(w) <= 8
+    (w.lower() for w in UZ_WORDS_ALL if w.isalpha() and 5 <= len(w) <= 12)
 ))
+
+# Kengaytirilgan o'zak-qo'shimchali so'zlar: bugungi, dasturlash, dokonchi...
+try:
+    from bot.uz_words_gen import UZ_DYNAMIC_WORDS
+    UZ_WORDS_CLEAN = sorted(set(UZ_WORDS_CLEAN).union(set(UZ_DYNAMIC_WORDS)))
+except Exception as e:
+    pass
 
 UZ_WORDS = UZ_WORDS_CLEAN + [
     n for n in UZ_MALE_NAMES + UZ_FEMALE_NAMES
-    if n.isalpha() and 5 <= len(n) <= 8
+    if n.isalpha() and 5 <= len(n) <= 12
 ]
 UZ_SHORT = UZ_WORDS
 

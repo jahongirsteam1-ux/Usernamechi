@@ -228,44 +228,44 @@ def generate_usernames(base_word: str, lang: str = 'uz', limit: int = 2000) -> l
                 and bool(TELEGRAM_RE.match(u)))
 
     def is_premium(u: str) -> bool:
-        return u.isalpha() and 5 <= len(u) <= 8
+        return u.isalpha() and 5 <= len(u) <= 12
 
     # ── CURATED POOL ──────────────────────────────
     if lang == 'uz':
         curated = list(set(
-            [n for n in UZ_MALE_NAMES   if n.isalpha() and 5 <= len(n) <= 8] +
-            [n for n in UZ_FEMALE_NAMES if n.isalpha() and 5 <= len(n) <= 8] +
-            [n for n in UZ_SURNAMES     if n.isalpha() and 5 <= len(n) <= 8] +
+            [n for n in UZ_MALE_NAMES   if n.isalpha() and 5 <= len(n) <= 12] +
+            [n for n in UZ_FEMALE_NAMES if n.isalpha() and 5 <= len(n) <= 12] +
+            [n for n in UZ_SURNAMES     if n.isalpha() and 5 <= len(n) <= 12] +
             UZ_WORDS_CLEAN
         ))
     else:
         curated = list(set(
-            [n for n in EN_MALE_NAMES   if n.isalpha() and 5 <= len(n) <= 8] +
-            [n for n in EN_FEMALE_NAMES if n.isalpha() and 5 <= len(n) <= 8] +
+            [n for n in EN_MALE_NAMES   if n.isalpha() and 5 <= len(n) <= 12] +
+            [n for n in EN_FEMALE_NAMES if n.isalpha() and 5 <= len(n) <= 12] +
             ANIMALS_CLEAN + NATURE_CLEAN + EN_COOL_CLEAN
         ))
     random.shuffle(curated)
 
     # ── LEKSIKON POOL (kamyob so'zlar — ko'pi bo'sh chiqadi) ──────
-    # nouns.txt / adjectives.txt dagi barcha 5-8 harfli so'zlar
+    # nouns.txt / adjectives.txt dagi barcha 5-10 harfli so'zlar
     if lang == 'uz':
         dict_pool = [
             w for w in nouns
-            if w.isalpha() and 5 <= len(w) <= 8 and _is_pronounceable(w)
+            if w.isalpha() and 5 <= len(w) <= 10 and _is_pronounceable(w)
         ]
     else:
         dict_pool = [
             w for w in (nouns + adjectives)
-            if w.isalpha() and 5 <= len(w) <= 8 and _is_pronounceable(w)
+            if w.isalpha() and 5 <= len(w) <= 10 and _is_pronounceable(w)
         ]
     # Oxirgi harflari bo'yicha tasodifiy shuffle — kamyoblar boshida
     random.shuffle(dict_pool)
 
-    # ── QISQA REJIM: Faqat 5-7 harfli toza so'zlar ───────────────
+    # ── QISQA REJIM: Faqat 5-9 harfli toza so'zlar ───────────────
     if cat == 'qisqa':
         pool = (
-            [u for u in curated   if u.isalpha() and 5 <= len(u) <= 7] +
-            [u for u in dict_pool if 5 <= len(u) <= 7]
+            [u for u in curated   if u.isalpha() and 5 <= len(u) <= 9] +
+            [u for u in dict_pool if 5 <= len(u) <= 9]
         )
     else:
         # TURLI rejim: barcha pool
