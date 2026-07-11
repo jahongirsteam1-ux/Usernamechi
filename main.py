@@ -760,7 +760,11 @@ async def api_search_start(request: Request):
     if not row or not row['session_string']:
         return {"ok": False, "error": "Akkaunt ulanmagan"}
 
-    total_price = max(0, (qty - row.get('free_searches', 1)) * 5000)
+    free_searches_count = row.get('free_searches')
+    if free_searches_count is None:
+        free_searches_count = 1
+
+    total_price = max(0, (qty - free_searches_count) * 5000)
     if (row['balance'] or 0) < total_price:
         return {"ok": False, "error": f"Balans yetarli emas ({total_price:,} so'm kerak)"}
 
@@ -769,7 +773,7 @@ async def api_search_start(request: Request):
         await deduct_balance(tid, total_price)
     
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE users SET free_searches = MAX(0, free_searches - ?) WHERE telegram_id = ?", (qty, tid))
+        await db.execute("UPDATE users SET free_searches = MAX(0, IFNULL(free_searches, 1) - ?) WHERE telegram_id = ?", (qty, tid))
         await db.commit()
 
     async with aiosqlite.connect(DB_PATH) as db:

@@ -796,10 +796,13 @@ async function startSearch() {
     } else {
       showToast(d.error || 'Xato yuz berdi', 'error');
     }
-  } catch(e) { showToast('Xato yuz berdi', 'error'); }
-
-  btn.innerHTML = '💳 To\'lab qidirish';
-  btn.disabled = false;
+  } catch(e) {
+    showToast('Xato yuz berdi', 'error');
+    console.error(e);
+  } finally {
+    btn.innerHTML = '💳 To\'lab qidirish';
+    btn.disabled = false;
+  }
 }
 
 async function pollSearchResults() {
