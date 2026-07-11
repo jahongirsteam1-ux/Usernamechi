@@ -822,26 +822,28 @@ async function pollSearchResults() {
 
 function renderSearchResults(results) {
   const list = document.getElementById('results-list');
-  let html = '';
-  if(results.length === 0) {
-    html = `<div style="padding:16px; text-align:center; color:var(--muted);">Hozircha natija yo'q...</div>`;
-  } else {
-    results.forEach((r, idx) => {
-      const num = idx + 1;
-      const isChecked = selectedUsernames.has(r.username) ? 'checked' : '';
-      const isClaimed = r.status === 'claimed';
-      const isMaxReached = selectedUsernames.size >= paidQty && !selectedUsernames.has(r.username);
-      const disabled = isClaimed || isMaxReached;
-      html += `
-        <label style="display:flex; align-items:center; padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.05); cursor:${disabled?'not-allowed':'pointer'}; opacity:${disabled?'0.4':'1'}">
-          <span style="min-width:26px; font-size:12px; color:var(--muted); font-weight:600; margin-right:8px;">${num}.</span>
-          <input type="checkbox" value="${r.username}" onchange="toggleSelection(this)" ${isChecked} ${disabled?'disabled':''} style="margin-right:10px; width:18px; height:18px; accent-color:var(--primary); flex-shrink:0;">
-          <span style="font-weight:600; font-size:14px;">@${r.username}</span>
-          ${isClaimed ? '<span style="margin-left:auto; font-size:12px; color:var(--success);">✅ Band</span>' : ''}
-        </label>
-      `;
-    });
+  const freeResults = results.filter(r => r.status !== 'claimed');
+  
+  if(freeResults.length === 0) {
+    list.innerHTML = `<div style="padding:16px; text-align:center; color:var(--muted);">Hozircha natija yo'q...</div>`;
+    return;
   }
+  
+  let html = '';
+  freeResults.forEach((r, idx) => {
+    const num = idx + 1;
+    const isChecked = selectedUsernames.has(r.username) ? 'checked' : '';
+    const isMaxReached = selectedUsernames.size >= paidQty && !selectedUsernames.has(r.username);
+    const disabled = isMaxReached;
+    
+    html += `
+      <label style="display:flex; align-items:center; padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.05); cursor:${disabled?'not-allowed':'pointer'}; opacity:${disabled?'0.4':'1'}">
+        <span style="min-width:26px; font-size:12px; color:var(--muted); font-weight:600; margin-right:8px;">${num}.</span>
+        <input type="checkbox" value="${r.username}" onchange="toggleSelection(this)" ${isChecked} ${disabled?'disabled':''} style="margin-right:10px; width:18px; height:18px; accent-color:var(--primary); flex-shrink:0;">
+        <span style="font-weight:600; font-size:14px;">@${r.username}</span>
+      </label>
+    `;
+  });
   list.innerHTML = html;
 }
 
