@@ -541,14 +541,19 @@ async def search_sniper(telegram_id: int, search_id: int, category: str, lang: s
             except UsernameInvalidError:
                 logger.debug(f"Invalid format (skip): {username}")
             except FloodWaitError as e:
-                # Agar kutish vaqti 300 soniyadan ko'p bo'lsa, jarayonni to'xtatish maqsadga muvofiq
+                # Agar kutish vaqti 300 soniyadan ko'p bo'lsa, jarayonni to'xtatish
                 if e.seconds > 300:
                     logger.warning(f"Huge FloodWait {e.seconds}s, stopping search")
-                    break
+                    async with aiosqlite.connect(DB_PATH) as db:
+                        await db.execute("UPDATE search_tasks SET status='error_floodwait' WHERE id=?", (search_id,))
+                        await db.commit()
+                    await client.disconnect()
+                    return
                 logger.warning(f"FloodWait {e.seconds}s: {username}")
                 await asyncio.sleep(e.seconds)
             except Exception as e:
-                pass
+                logger.error(f"Search loop xato: {type(e).__name__} - {e}")
+                await asyncio.sleep(0.5)
                 
         await client.disconnect()
         

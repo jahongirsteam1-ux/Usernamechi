@@ -814,6 +814,9 @@ async function pollSearchResults() {
       if(d.status === 'completed') {
         clearInterval(searchPollInterval);
         document.getElementById('search-status-text').innerHTML = '✅ Qidiruv yakunlandi.';
+      } else if(d.status === 'error_floodwait') {
+        clearInterval(searchPollInterval);
+        document.getElementById('search-status-text').innerHTML = '⚠️ Telegram cheklovi: Birozdan so\'ng qayta urinib ko\'ring (FloodWait).';
       }
       renderSearchResults(d.results);
     }
