@@ -512,9 +512,10 @@ async def search_sniper(telegram_id: int, search_id: int, category: str, lang: s
         from telethon.sessions import StringSession
         from telethon.errors import (
             FloodWaitError, UsernameOccupiedError,
-            UsernameInvalidError, UsernameNotModifiedError
+            UsernameInvalidError, UsernameNotModifiedError,
+            UsernameNotOccupiedError
         )
-        from telethon.tl.functions.account import CheckUsernameRequest
+        from telethon.tl.functions.contacts import ResolveUsernameRequest
 
         client = TelegramClient(StringSession(session_string), API_ID, API_HASH)
         await client.connect()
@@ -523,29 +524,31 @@ async def search_sniper(telegram_id: int, search_id: int, category: str, lang: s
             if found_count >= 200:  # max 200 ta ko'rsatish
                 break
             try:
-                is_free = await client(CheckUsernameRequest(username=username))
-                if is_free:
-                    async with aiosqlite.connect(DB_PATH) as db:
-                        await db.execute(
-                            "INSERT INTO search_results (search_id, username) VALUES (?,?)",
-                            (search_id, username)
-                        )
-                        await db.commit()
-                    found_count += 1
-                await asyncio.sleep(0.3)  # FloodWait dan qochish uchun optimal tezlik
+                # ResolveUsernameRequest is much less rate-limited than CheckUsernameRequest
+                await client(ResolveUsernameRequest(username=username))
+                # If no error, it means the username exists -> TAKEN
+                await asyncio.sleep(0.1)
+            except UsernameNotOccupiedError:
+                # FREE!
+                async with aiosqlite.connect(DB_PATH) as db:
+                    await db.execute(
+                        "INSERT INTO search_results (search_id, username) VALUES (?,?)",
+                        (search_id, username)
+                    )
+                    await db.commit()
+                found_count += 1
+                await asyncio.sleep(0.1)
             except UsernameInvalidError:
-                # Telegram format rad etdi - bu username ni o'tkazib yubor
                 logger.debug(f"Invalid format (skip): {username}")
-            except UsernameNotModifiedError:
-                pass
             except FloodWaitError as e:
+                # Agar kutish vaqti 300 soniyadan ko'p bo'lsa, jarayonni to'xtatish maqsadga muvofiq
+                if e.seconds > 300:
+                    logger.warning(f"Huge FloodWait {e.seconds}s, stopping search")
+                    break
                 logger.warning(f"FloodWait {e.seconds}s: {username}")
                 await asyncio.sleep(e.seconds)
-            except UsernameOccupiedError:
-                pass
             except Exception as e:
-                logger.error(f"Search xato ({type(e).__name__}): {e} — {username}")
-                await asyncio.sleep(2)
+                pass
                 
         await client.disconnect()
         
