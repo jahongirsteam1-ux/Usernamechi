@@ -190,28 +190,49 @@ async def deduct_balance(telegram_id, amount):
         await db.commit()
 
 # ─── USERNAME GENERATOR ───────────────────────
-from bot.words import generate_smart_username, nouns, adjectives
+from bot.words import (
+    generate_smart_username, nouns, adjectives,
+    UZ_SHORT, UZ_PREFIXES, UZ_SUFFIXES,
+    EN_PREFIXES, EN_COOL, EN_NUMBERS,
+)
 import random
 import string
 
-def generate_usernames(base_word: str, lang: str = 'uz', limit: int = 200) -> list:
+def generate_usernames(base_word: str, lang: str = 'uz', limit: int = 300) -> list:
+    """
+    Kategoriya va tilga qarab username ro'yxatini yaratadi.
+    limit=300 — filtrlashdan keyin kamida 50+ noyob natija bo'lsin.
+    """
     results = set()
     cat = base_word.strip().lower()
-    
-    # Qisqa so'zlarni tayyorlaymiz (5-6 harfli ma'noli so'zlar)
+
+    # Qisqa so'zlar bazasi (lang ga qarab)
     if lang == 'uz':
-        short_words = ["oltin", "kumush", "yulduz", "yigit", "yaxshi", "kuchli", "bahor", "quyosh", "osmon", "bulut", "orzu", "baxt", "shodlik", "vatan", "xalq", "yurak", "mehnat", "aqlli", "gozal", "shirin", "hayot", "dunyo", "zamon", "maktab", "ustoz", "olim", "bilim", "doira", "chiroy"]
+        short_pool = list(UZ_SHORT)
     else:
-        short_words = [w for w in nouns + adjectives if 5 <= len(w) <= 6]
-        if not short_words:
-            short_words = ["super", "smart", "tiger", "ninja", "coder", "gamer", "happy", "lucky"]
-    
-    while len(results) < limit * 2: # generate more to account for filtering
+        short_pool = [w for w in nouns + adjectives if 5 <= len(w) <= 6]
+        if not short_pool:
+            short_pool = EN_COOL[:30]
+
+    target = limit * 3  # filtrlash uchun ko'proq yig'amiz
+
+    attempts = 0
+    while len(results) < target and attempts < target * 10:
+        attempts += 1
         if cat == 'qisqa':
-            results.add(random.choice(short_words))
+            # Toza qisqa so'z yoki so'z+raqam
+            w = random.choice(short_pool)
+            choice = random.random()
+            if choice < 0.5:
+                results.add(w)
+            elif choice < 0.75:
+                results.add(f"{w}{random.randint(1, 99)}")
+            else:
+                pref = random.choice(UZ_PREFIXES if lang == 'uz' else EN_PREFIXES)
+                results.add(f"{pref}{w}")
         else:
             results.add(generate_smart_username(lang=lang))
-            
+
     # Telegram qoidasi: 5-32 harf, harf bilan boshlanishi, harf/raqam bilan tugashi,
     # ketma-ket underscore yo'q
     TELEGRAM_USERNAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]{3,30}[a-zA-Z0-9]$')
@@ -226,6 +247,7 @@ def generate_usernames(base_word: str, lang: str = 'uz', limit: int = 200) -> li
 
     random.shuffle(valid)
     return valid[:limit]
+
 
 # ─── ASOSIY MENYU ─────────────────────────────
 def main_menu():
