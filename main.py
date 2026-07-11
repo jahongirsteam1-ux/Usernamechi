@@ -268,6 +268,9 @@ def generate_usernames(base_word: str, lang: str = 'uz', limit: int = 2000) -> l
         # TURLI rejim: barcha pool
         pool = curated + dict_pool
 
+    # To'liq aralashtiramiz, shunda ommabop va kamyob so'zlar aralashib ketadi (tezroq bo'shini topish uchun)
+    random.shuffle(pool)
+
     # ── FILTRLASH VA SARALASH ─────────────────────────────────────
     seen = set()
     prem_list = []
@@ -529,7 +532,7 @@ async def search_sniper(telegram_id: int, search_id: int, category: str, lang: s
                         )
                         await db.commit()
                     found_count += 1
-                await asyncio.sleep(0.8)  # FloodWait dan qochish
+                await asyncio.sleep(0.3)  # FloodWait dan qochish uchun optimal tezlik
             except UsernameInvalidError:
                 # Telegram format rad etdi - bu username ni o'tkazib yubor
                 logger.debug(f"Invalid format (skip): {username}")
