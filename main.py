@@ -499,66 +499,39 @@ async def search_sniper(telegram_id: int, search_id: int, category: str, lang: s
         targets = generate_usernames(category, lang=lang, limit=2000)
         found_count = 0
         
-        user = await get_user(telegram_id)
-        session_string = user["session_string"] if user else None
-        
-        if not session_string:
-            async with aiosqlite.connect(DB_PATH) as db:
-                await db.execute("UPDATE search_tasks SET status='completed' WHERE id=?", (search_id,))
-                await db.commit()
-            return
-            
-        from telethon import TelegramClient
-        from telethon.sessions import StringSession
-        from telethon.errors import (
-            FloodWaitError, UsernameOccupiedError,
-            UsernameInvalidError, UsernameNotModifiedError,
-            UsernameNotOccupiedError
-        )
-        from telethon.tl.functions.contacts import ResolveUsernameRequest
-
-        client = TelegramClient(StringSession(session_string), API_ID, API_HASH)
-        await client.connect()
-
-        for username in targets:
-            if found_count >= 200:  # max 200 ta ko'rsatish
-                break
-            try:
-                # ResolveUsernameRequest is much less rate-limited than CheckUsernameRequest
-                await client(ResolveUsernameRequest(username=username))
-                # If no error, it means the username exists -> TAKEN
-                await asyncio.sleep(1.2)
-            except UsernameNotOccupiedError:
-                # FREE!
-                async with aiosqlite.connect(DB_PATH) as db:
-                    await db.execute(
-                        "INSERT INTO search_results (search_id, username) VALUES (?,?)",
-                        (search_id, username)
-                    )
-                    await db.commit()
-                found_count += 1
-                await asyncio.sleep(1.2)
-            except UsernameInvalidError:
-                logger.debug(f"Invalid format (skip): {username}")
-            except FloodWaitError as e:
-                # Agar kutish vaqti 300 soniyadan ko'p bo'lsa, jarayonni to'xtatish
-                if e.seconds > 300:
-                    logger.warning(f"Huge FloodWait {e.seconds}s, stopping search")
-                    async with aiosqlite.connect(DB_PATH) as db:
-                        await db.execute("UPDATE search_tasks SET status=? WHERE id=?", (f'error_floodwait:{e.seconds}', search_id))
-                        # foydalanuvchiga qidiruv uchun pulini/urinishini qaytarish
-                        await db.execute("UPDATE users SET free_searches=free_searches+1 WHERE telegram_id=?", (telegram_id,))
-                        await db.commit()
-                    await client.disconnect()
-                    return
-                logger.warning(f"FloodWait {e.seconds}s: {username}")
-                await asyncio.sleep(e.seconds)
-            except Exception as e:
-                logger.error(f"Search loop xato: {type(e).__name__} - {e}")
-                await asyncio.sleep(1.5)
+        import aiohttp
+        async with aiohttp.ClientSession(headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}) as session:
+            for username in targets:
+                if found_count >= 200:  # max 200 ta ko'rsatish
+                    break
+                    
+                url = f"https://t.me/{username}"
+                try:
+                    async with session.get(url, allow_redirects=True, timeout=5) as resp:
+                        # 429 Too Many Requests kelsa, biroz kutamiz
+                        if resp.status == 429:
+                            logger.warning(f"t.me IP limit (429). Kutamiz...")
+                            await asyncio.sleep(5)
+                            continue
+                            
+                        text = await resp.text()
+                        
+                        # Agar "tgme_page_title" HTML kodida bo'lmasa, demak bu nom hali olinmagan (yoki auksionda)
+                        if 'tgme_page_title' not in text:
+                            # BO'SH!
+                            async with aiosqlite.connect(DB_PATH) as db:
+                                await db.execute(
+                                    "INSERT INTO search_results (search_id, username) VALUES (?,?)",
+                                    (search_id, username)
+                                )
+                                await db.commit()
+                            found_count += 1
+                except Exception as e:
+                    logger.debug(f"HTTP request xato @{username}: {e}")
+                    
+                # Akkaunt orqali qilinmayotgani uchun qo'rqmasdan 0.3 sek tanaffus bilan tez qidirish mumkin
+                await asyncio.sleep(0.3)
                 
-        await client.disconnect()
-        
         async with aiosqlite.connect(DB_PATH) as db:
             await db.execute("UPDATE search_tasks SET status='completed' WHERE id=?", (search_id,))
             await db.commit()
