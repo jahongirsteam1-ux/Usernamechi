@@ -152,6 +152,12 @@ async def init_db():
             await db.commit()
         except Exception:
             pass  # Ustun allaqachon mavjud
+        try:
+            await db.execute("ALTER TABLE orders ADD COLUMN floodwait_until REAL DEFAULT 0")
+            await db.execute("ALTER TABLE orders ADD COLUMN pending_usernames TEXT DEFAULT ''")
+            await db.commit()
+        except Exception:
+            pass  # Ustun allaqachon mavjud
     logger.info("✅ Baza tayyor")
 
 async def get_setting(key, default=None):
@@ -592,6 +598,8 @@ async def claim_sniper(bot, telegram_id: int, order_id: int, usernames: list):
         
         claimed = []
         failed_reasons = []
+        deferred = []  # FloodWait tufayli keyinga qoldirilganlar
+        
         for username in usernames:
             try:
                 ch = None
@@ -635,39 +643,128 @@ async def claim_sniper(bot, telegram_id: int, order_id: int, usernames: list):
                         break
                 await asyncio.sleep(1)
             except FloodWaitError as e:
-                logger.warning(f"FloodWait during claim: {e.seconds}s")
-                if e.seconds > 300:
-                    failed_reasons.append(f"@{username} — <b>FloodWait ({e.seconds} soniya)</b>. Akkaunt vaqtincha bloklandi.")
-                    break
-                await asyncio.sleep(e.seconds)
+                logger.warning(f"FloodWait during claim: {e.seconds}s for {username}")
+                # Bu va keyingi barcha usernamelarni keyinga qoldirish
+                deferred.append(username)
+                # Qolgan username larni ham deferred ga qo'shish
+                remaining_idx = usernames.index(username) + 1
+                deferred.extend(usernames[remaining_idx:])
+                
+                # FloodWait tugash vaqtini saqlash
+                import time
+                floodwait_until = time.time() + e.seconds
+                import json as _json
+                async with aiosqlite.connect(DB_PATH) as db:
+                    await db.execute(
+                        "UPDATE orders SET floodwait_until=?, pending_usernames=?, status='floodwait' WHERE id=?",
+                        (floodwait_until, _json.dumps(deferred), order_id)
+                    )
+                    await db.commit()
+                
+                # Foydalanuvchiga xabar berish
+                secs = e.seconds
+                if secs >= 3600:
+                    time_str = f"{secs // 3600} soat {(secs % 3600) // 60} daqiqa"
+                elif secs >= 60:
+                    time_str = f"{secs // 60} daqiqa"
+                else:
+                    time_str = f"{secs} soniya"
+                
+                await bot.send_message(
+                    telegram_id,
+                    f"⏳ <b>Diqqat!</b> Telegram hisobingiz vaqtincha cheklangan (FloodWait)\n\n"
+                    f"Blok <b>{time_str}</b> dan keyin avtomatik ravishda ochiladi.\n\n"
+                    f"🤖 Bot blok ochilishi bilanoq, <b>{len(deferred)} ta</b> username tanlagan ro'yxatingizdan avtomatik band qiladi va sizga xabar beradi!\n\n"
+                    f"<i>Hech narsani qilishingiz shart emas — bot o'zi kuzatib boradi.</i>",
+                    parse_mode="HTML"
+                )
+                break
             except Exception as e:
                 logger.error(f"Claim xato: {e}")
                 
         await client.disconnect()
         
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute("UPDATE orders SET status='completed' WHERE id=?", (order_id,))
-            
-            # Agar hech narsa olinmagan bo'lsa, pulni to'liq qaytarish (refund)
-            if len(claimed) == 0:
-                cur = await db.execute("SELECT price FROM orders WHERE id=?", (order_id,))
-                order_row = await cur.fetchone()
-                if order_row and order_row[0]:
-                    refund_amount = order_row[0]
-                    await db.execute("UPDATE users SET balance=balance+? WHERE telegram_id=?", (refund_amount, telegram_id))
-                    
-            await db.commit()
-            
-        msg = f"🎉 <b>Buyurtma yakunlandi!</b>\nJami band qilindi: <b>{len(claimed)} ta</b>\n"
-        if claimed:
+        # Agar deferred bo'lmasa - buyurtmani yakunlash
+        if not deferred:
+            async with aiosqlite.connect(DB_PATH) as db:
+                await db.execute("UPDATE orders SET status='completed' WHERE id=?", (order_id,))
+                
+                # Agar hech narsa olinmagan bo'lsa, pulni to'liq qaytarish (refund)
+                if len(claimed) == 0:
+                    cur = await db.execute("SELECT price FROM orders WHERE id=?", (order_id,))
+                    order_row = await cur.fetchone()
+                    if order_row and order_row[0]:
+                        refund_amount = order_row[0]
+                        await db.execute("UPDATE users SET balance=balance+? WHERE telegram_id=?", (refund_amount, telegram_id))
+                        
+                await db.commit()
+                
+            msg = f"🎉 <b>Buyurtma yakunlandi!</b>\nJami band qilindi: <b>{len(claimed)} ta</b>\n"
+            if claimed:
+                msg += "\n".join(f"✅ @{u}" for u in claimed)
+            else:
+                msg += "❌ Hech qanday nom olinmadi.\n\n<b>Sabablari:</b>\n" + "\n".join(failed_reasons)
+                msg += "\n\n<i>To'langan pul balansingizga to'liq qaytarildi (Refund). Boshqa akkaunt bilan urinib ko'ring!</i>"
+                
+            await bot.send_message(telegram_id, msg, parse_mode="HTML")
+        elif claimed:
+            # Ba'zilari olingan, ba'zilari deferred
+            msg = f"✅ <b>{len(claimed)} ta</b> username band qilindi:\n"
             msg += "\n".join(f"✅ @{u}" for u in claimed)
-        else:
-            msg += "❌ Hech qanday nom olinmadi.\n\n<b>Sabablari:</b>\n" + "\n".join(failed_reasons)
-            msg += "\n\n<i>To'langan pul balansingizga to'liq qaytarildi (Refund). Boshqa akkaunt bilan urinib ko'ring!</i>"
+            msg += f"\n\n⏳ <b>{len(deferred)} tasi</b> blok tugagach avtomatik band qilinadi."
+            await bot.send_message(telegram_id, msg, parse_mode="HTML")
             
-        await bot.send_message(telegram_id, msg, parse_mode="HTML")
     except Exception as e:
         logger.error(f"Claim task xato: {e}")
+
+async def deferred_claim_loop(bot):
+    """Blok muddati o'tgan buyurtmalarni avtomatik band qiladi."""
+    from telethon import TelegramClient
+    from telethon.sessions import StringSession
+    from telethon.errors import FloodWaitError
+    from telethon.tl.functions.channels import CreateChannelRequest, UpdateUsernameRequest, DeleteChannelRequest
+    import time
+    import json as _json
+    
+    while True:
+        try:
+            now = time.time()
+            async with aiosqlite.connect(DB_PATH) as db:
+                db.row_factory = aiosqlite.Row
+                async with db.execute(
+                    "SELECT id, telegram_id, price, pending_usernames FROM orders WHERE status='floodwait' AND floodwait_until <= ?",
+                    (now,)
+                ) as c:
+                    due_orders = await c.fetchall()
+            
+            for order in due_orders:
+                order_id = order['id']
+                telegram_id = order['telegram_id']
+                try:
+                    usernames = _json.loads(order['pending_usernames'] or '[]')
+                except:
+                    usernames = []
+                
+                if not usernames:
+                    async with aiosqlite.connect(DB_PATH) as db:
+                        await db.execute("UPDATE orders SET status='completed' WHERE id=?", (order_id,))
+                        await db.commit()
+                    continue
+                
+                logger.info(f"Deferred claim: order {order_id}, {len(usernames)} usernames")
+                
+                # Status qayta ko'rib chiqish — hozir band qilishga urinish
+                async with aiosqlite.connect(DB_PATH) as db:
+                    await db.execute("UPDATE orders SET status='processing', pending_usernames='', floodwait_until=0 WHERE id=?", (order_id,))
+                    await db.commit()
+                
+                # Fon rejimida band qilishni boshlash
+                asyncio.create_task(claim_sniper(bot, telegram_id, order_id, usernames))
+                
+        except Exception as e:
+            logger.error(f"Deferred claim loop xato: {e}")
+        
+        await asyncio.sleep(60)  # Har 60 soniyada tekshirish
 
 async def monitoring_loop(bot):
     """Orqa fonda barcha monitoring_tasks larni aylanib chiqadi."""
@@ -1278,6 +1375,9 @@ async def main():
 
     # Orqa fonda monitoring loop ni ishga tushiramiz
     monitoring_task = asyncio.create_task(monitoring_loop(bot))
+    
+    # Orqa fonda deferred claim loop ni ishga tushiramiz
+    deferred_task = asyncio.create_task(deferred_claim_loop(bot))
 
     # Aiogram bot va FastAPI parallel ishlatish
     config = uvicorn.Config(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)), log_level="warning")
@@ -1285,7 +1385,7 @@ async def main():
 
     # Graceful shutdown: SIGTERM va SIGINT uchun
     loop = asyncio.get_event_loop()
-    bg_tasks: list[asyncio.Task] = [monitoring_task]
+    bg_tasks: list[asyncio.Task] = [monitoring_task, deferred_task]
 
     async def _shutdown():
         logger.info("⏹ Graceful shutdown boshlandi...")

@@ -837,32 +837,83 @@ async function pollSearchResults() {
   } catch(e) {}
 }
 
+// Username carousel state
+let currentResultIndex = 0;
+let cachedFreeResults = [];
+
 function renderSearchResults(results) {
   const list = document.getElementById('results-list');
-  const freeResults = results.filter(r => r.status !== 'claimed');
+  cachedFreeResults = results.filter(r => r.status !== 'claimed');
   
-  if(freeResults.length === 0) {
+  if(cachedFreeResults.length === 0) {
     list.innerHTML = `<div style="padding:16px; text-align:center; color:var(--muted);">Hozircha natija yo'q...</div>`;
+    updateSelectionUI();
     return;
   }
   
-  let html = '';
-  freeResults.forEach((r, idx) => {
-    const num = idx + 1;
-    const isChecked = selectedUsernames.has(r.username) ? 'checked' : '';
-    const isMaxReached = selectedUsernames.size >= paidQty && !selectedUsernames.has(r.username);
-    const disabled = isMaxReached;
-    
-    html += `
-      <label style="display:flex; align-items:center; padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.05); cursor:${disabled?'not-allowed':'pointer'}; opacity:${disabled?'0.4':'1'}">
-        <span style="min-width:26px; font-size:12px; color:var(--muted); font-weight:600; margin-right:8px;">${num}.</span>
-        <input type="checkbox" value="${r.username}" onchange="toggleSelection(this)" ${isChecked} ${disabled?'disabled':''} style="margin-right:10px; width:18px; height:18px; accent-color:var(--primary); flex-shrink:0;">
-        <span style="font-weight:600; font-size:14px;">@${r.username}</span>
-      </label>
-    `;
-  });
-  list.innerHTML = html;
+  // Ensure current index stays in bounds
+  if(currentResultIndex >= cachedFreeResults.length) currentResultIndex = 0;
+  renderCarousel();
 }
+
+function renderCarousel() {
+  const list = document.getElementById('results-list');
+  const results = cachedFreeResults;
+  if(results.length === 0) return;
+  
+  const r = results[currentResultIndex];
+  const total = results.length;
+  const isChecked = selectedUsernames.has(r.username);
+  const isMaxReached = selectedUsernames.size >= paidQty && !selectedUsernames.has(r.username);
+  const disabled = isMaxReached;
+  
+  const prevDisabled = currentResultIndex === 0;
+  const nextDisabled = currentResultIndex === total - 1;
+  
+  list.innerHTML = `
+    <div style="padding:8px 14px 4px; display:flex; align-items:center; justify-content:space-between;">
+      <span style="font-size:12px; color:var(--muted)">${currentResultIndex+1} / ${total} ta topildi</span>
+      <span style="font-size:12px; color:var(--muted)">${selectedUsernames.size}/${paidQty} tanlangan</span>
+    </div>
+    
+    <div style="display:flex; align-items:center; padding:16px 12px; gap:10px;">
+      <button onclick="carouselPrev()" ${prevDisabled ? 'disabled' : ''}
+        style="width:38px; height:38px; border-radius:50%; border:none; background:rgba(255,255,255,0.1); color:white; font-size:18px; cursor:${prevDisabled?'not-allowed':'pointer'}; opacity:${prevDisabled?'0.3':'1'}; flex-shrink:0; transition:all .2s;">
+        ◀
+      </button>
+      
+      <label style="flex:1; display:flex; align-items:center; padding:14px 16px; border-radius:12px; background:rgba(255,255,255,0.05); border:2px solid ${isChecked ? 'var(--primary)' : 'rgba(255,255,255,0.1)'}; cursor:${disabled?'not-allowed':'pointer'}; opacity:${disabled?'0.5':'1'}; transition:all .2s;">
+        <input type="checkbox" value="${r.username}" onchange="toggleSelection(this)" ${isChecked ? 'checked' : ''} ${disabled ? 'disabled' : ''}
+          style="width:20px; height:20px; accent-color:var(--primary); flex-shrink:0; margin-right:12px;">
+        <div>
+          <div style="font-weight:700; font-size:16px;">@${r.username}</div>
+          <div style="font-size:12px; color:var(--muted); margin-top:2px;">${isChecked ? '✅ Tanlangan' : (disabled ? '🔒 Limit to\'ldi' : '⬜ Tanlash uchun bosing')}</div>
+        </div>
+      </label>
+      
+      <button onclick="carouselNext()" ${nextDisabled ? 'disabled' : ''}
+        style="width:38px; height:38px; border-radius:50%; border:none; background:rgba(255,255,255,0.1); color:white; font-size:18px; cursor:${nextDisabled?'not-allowed':'pointer'}; opacity:${nextDisabled?'0.3':'1'}; flex-shrink:0; transition:all .2s;">
+        ▶
+      </button>
+    </div>
+    
+    <div style="display:flex; justify-content:center; gap:6px; padding:4px 14px 10px;">
+      ${results.map((_, i) => `<div onclick="carouselGoto(${i})" style="width:${i===currentResultIndex?'20px':'8px'}; height:8px; border-radius:4px; background:${i===currentResultIndex?'var(--primary)':'rgba(255,255,255,0.2)'}; cursor:pointer; transition:all .3s;"></div>`).join('')}
+    </div>
+  `;
+}
+
+function carouselPrev() {
+  if(currentResultIndex > 0) { currentResultIndex--; renderCarousel(); }
+}
+function carouselNext() {
+  if(currentResultIndex < cachedFreeResults.length - 1) { currentResultIndex++; renderCarousel(); }
+}
+function carouselGoto(idx) {
+  currentResultIndex = idx;
+  renderCarousel();
+}
+
 
 async function nextSearch() {
   if (!currentSearchId) return;
@@ -911,8 +962,12 @@ function toggleSelection(checkbox) {
     selectedUsernames.delete(checkbox.value);
   }
   updateSelectionUI();
-  // Limitga yetganda boshqa checkboxlarni qayta render qilish (disable uchun)
-  pollSearchResults();
+  // Carousel kartani yangilash (belgi va rangni ko'rsatish)
+  if(cachedFreeResults.length > 0) renderCarousel();
+  // Tanlangandan so'ng keyingi username ga o'tish
+  if(checkbox.checked && currentResultIndex < cachedFreeResults.length - 1) {
+    setTimeout(() => { currentResultIndex++; renderCarousel(); }, 400);
+  }
 }
 
 function updateSelectionUI() {
