@@ -266,7 +266,39 @@ def generate_usernames(base_word: str, lang: str = 'uz', limit: int = 2000) -> l
     random.shuffle(dict_pool)
 
     # ── QISQA REJIM: Faqat 5-9 harfli toza so'zlar ───────────────
-    if cat == 'qisqa':
+    if cat.startswith('custom:'):
+        # MAXSUS QIDIRUV REJIMI
+        custom_word = cat.split(':', 1)[1].strip()
+        custom_word_clean = ''.join(c for c in custom_word if c.isalnum() or c == '_')
+        
+        # O'zgarishlarni yaratish (prefixes, suffixes, numbers)
+        prefixes = ['', 'the', 'real', 'my', 'mr', 'mrs', 'dr', 'pro', 'uz', 'uzb', 'vip', 'super', 'mega', 'top', 'best', 'true', 'its']
+        suffixes = ['', 'official', 'uz', 'uzb', 'bot', 'pro', 'vip', 'top', 'blog', 'channel', 'tv', 'media', 'news', 'store', 'shop', 'life', 'style', 'music', 'art', 'dev', 'tech']
+        numbers = ['', '1', '7', '11', '24', '77', '99', '100', '777', '999', '2024', '007']
+        
+        custom_pool = set()
+        
+        # 1. Asosiy so'z
+        custom_pool.add(custom_word_clean)
+        
+        # 2. Prefixes and Suffixes
+        for p in prefixes:
+            for s in suffixes:
+                custom_pool.add(f"{p}{custom_word_clean}{s}")
+                if p: custom_pool.add(f"{p}_{custom_word_clean}{s}")
+                if s: custom_pool.add(f"{p}{custom_word_clean}_{s}")
+                if p and s: custom_pool.add(f"{p}_{custom_word_clean}_{s}")
+                
+        # 3. Numbers
+        for n in numbers:
+            if n:
+                custom_pool.add(f"{custom_word_clean}{n}")
+                custom_pool.add(f"{custom_word_clean}_{n}")
+                for s in suffixes:
+                    if s: custom_pool.add(f"{custom_word_clean}_{s}{n}")
+        
+        pool = list(custom_pool)
+    elif cat == 'qisqa':
         pool = (
             [u for u in curated   if u.isalpha() and 5 <= len(u) <= 9] +
             [u for u in dict_pool if 5 <= len(u) <= 9]
@@ -605,7 +637,7 @@ async def claim_sniper(bot, telegram_id: int, order_id: int, usernames: list):
             try:
                 ch = None
                 try:
-                    ch = await client(CreateChannelRequest(title=username.capitalize(), about="Usernamechi", megagroup=False))
+                    ch = await client(CreateChannelRequest(title=username.capitalize(), about="@usernamechi_bot orqali band qilingan", megagroup=False))
                     ch_id = ch.chats[0].id
                     await client(UpdateUsernameRequest(channel=ch_id, username=username))
                     
@@ -801,7 +833,7 @@ async def monitoring_loop(bot):
                     if is_free:
                         ch = None
                         try:
-                            ch = await client(CreateChannelRequest(title=task["username"].capitalize(), about="Monitored", megagroup=False))
+                            ch = await client(CreateChannelRequest(title=task["username"].capitalize(), about="@usernamechi_bot orqali band qilingan", megagroup=False))
                             ch_id = ch.chats[0].id
                             await client(UpdateUsernameRequest(channel=ch_id, username=task["username"]))
                             
