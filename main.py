@@ -497,8 +497,24 @@ async def search_sniper(telegram_id: int, search_id: int, category: str, lang: s
     """Fon rejimida faqat usernamesni tekshiradi va bazaga yozadi."""
     try:
         targets = generate_usernames(category, lang=lang, limit=2000)
-        found_count = 0
+        user = await get_user(telegram_id)
+        session_string = user["session_string"] if user else None
         
+        if not session_string:
+            async with aiosqlite.connect(DB_PATH) as db:
+                await db.execute("UPDATE search_tasks SET status='completed' WHERE id=?", (search_id,))
+                await db.commit()
+            return
+            
+        from telethon import TelegramClient
+        from telethon.sessions import StringSession
+        from telethon.tl.functions.account import CheckUsernameRequest
+        from telethon.errors import UsernamePurchaseAvailableError, FloodWaitError
+        
+        client = TelegramClient(StringSession(session_string), API_ID, API_HASH)
+        await client.connect()
+        
+        found_count = 0
         import aiohttp
         async with aiohttp.ClientSession(headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}) as session:
             for username in targets:
@@ -516,22 +532,42 @@ async def search_sniper(telegram_id: int, search_id: int, category: str, lang: s
                             
                         text = await resp.text()
                         
-                        # Agar "tgme_page_title" HTML kodida bo'lmasa, demak bu nom hali olinmagan (yoki auksionda)
+                        # Agar "tgme_page_title" HTML kodida bo'lmasa, demak bu nom olinmagan yoki Fragment auksionida!
                         if 'tgme_page_title' not in text:
-                            # BO'SH!
-                            async with aiosqlite.connect(DB_PATH) as db:
-                                await db.execute(
-                                    "INSERT INTO search_results (search_id, username) VALUES (?,?)",
-                                    (search_id, username)
-                                )
-                                await db.commit()
-                            found_count += 1
+                            # 100% bo'sh ekanligini rasmiy API orqali aniqlaymiz (Fragmentni filtrlash uchun)
+                            # API faqat potentsial bo'sh nomlar uchungina chaqiriladi (FloodWait xavfi yo'q)
+                            try:
+                                is_free = await client(CheckUsernameRequest(username))
+                                if is_free:
+                                    async with aiosqlite.connect(DB_PATH) as db:
+                                        await db.execute(
+                                            "INSERT INTO search_results (search_id, username) VALUES (?,?)",
+                                            (search_id, username)
+                                        )
+                                        await db.commit()
+                                    found_count += 1
+                                    await asyncio.sleep(1) # API chaqiruvidan so'ng pauza
+                            except UsernamePurchaseAvailableError:
+                                logger.debug(f"Fragment auksionida ekan, o'tkazib yuboramiz: {username}")
+                            except FloodWaitError as e:
+                                if e.seconds > 300:
+                                    async with aiosqlite.connect(DB_PATH) as db:
+                                        await db.execute("UPDATE search_tasks SET status=? WHERE id=?", (f'error_floodwait:{e.seconds}', search_id))
+                                        await db.execute("UPDATE users SET free_searches=free_searches+1 WHERE telegram_id=?", (telegram_id,))
+                                        await db.commit()
+                                    await client.disconnect()
+                                    return
+                                await asyncio.sleep(e.seconds)
+                            except Exception as e:
+                                logger.debug(f"API Check xato @{username}: {e}")
                 except Exception as e:
                     logger.debug(f"HTTP request xato @{username}: {e}")
                     
                 # Akkaunt orqali qilinmayotgani uchun qo'rqmasdan 0.3 sek tanaffus bilan tez qidirish mumkin
                 await asyncio.sleep(0.3)
                 
+        await client.disconnect()
+        
         async with aiosqlite.connect(DB_PATH) as db:
             await db.execute("UPDATE search_tasks SET status='completed' WHERE id=?", (search_id,))
             await db.commit()
