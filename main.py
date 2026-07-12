@@ -155,6 +155,7 @@ async def init_db():
         try:
             await db.execute("ALTER TABLE orders ADD COLUMN floodwait_until REAL DEFAULT 0")
             await db.execute("ALTER TABLE orders ADD COLUMN pending_usernames TEXT DEFAULT ''")
+            await db.execute("ALTER TABLE orders ADD COLUMN user_first_name TEXT DEFAULT ''")
             await db.commit()
         except Exception:
             pass  # Ustun allaqachon mavjud
@@ -670,12 +671,21 @@ async def claim_sniper(bot, telegram_id: int, order_id: int, usernames: list):
                 else:
                     time_str = f"{secs} soniya"
                 
+                # Foydalanuvchi ismini va tanlangan usernamelarni olish
+                async with aiosqlite.connect(DB_PATH) as db:
+                    async with db.execute("SELECT user_first_name FROM orders WHERE id=?", (order_id,)) as c:
+                        order_row = await c.fetchone()
+                    user_first_name = (order_row[0] or "Foydalanuvchi") if order_row else "Foydalanuvchi"
+                
+                usernames_list = "\n".join(f"\u2022 @{u}" for u in deferred)
+                
                 await bot.send_message(
                     telegram_id,
-                    f"⏳ <b>Diqqat!</b> Telegram hisobingiz vaqtincha cheklangan (FloodWait)\n\n"
-                    f"Blok <b>{time_str}</b> dan keyin avtomatik ravishda ochiladi.\n\n"
-                    f"🤖 Bot blok ochilishi bilanoq, <b>{len(deferred)} ta</b> username tanlagan ro'yxatingizdan avtomatik band qiladi va sizga xabar beradi!\n\n"
-                    f"<i>Hech narsani qilishingiz shart emas — bot o'zi kuzatib boradi.</i>",
+                    f"\u23f3 <b>Hurmatli {user_first_name}!</b>\n\n"
+                    f"Telegram cheklovi <b>{time_str}</b> dan keyin ochiladi.\n\n"
+                    f"<b>Tanlagan usernamengiz:</b>\n{usernames_list}\n\n"
+                    f"\U0001f916 Cheklov ochilishi bilan yuqoridagi usernamelar avtomatik <b>band qilinadi</b> va sizga xabar yuboriladi.\n\n"
+                    f"<i>Hech narsani qilishingiz shart emas \u2014 bot o'zi kuzatib boradi.</i>",
                     parse_mode="HTML"
                 )
                 break
@@ -1090,9 +1100,10 @@ async def api_buy_selected(request: Request):
         
     # Pulni yechish va order yaratish
     await deduct_balance(tid, price)
+    user_first_name = user.get('first_name', 'Foydalanuvchi')
     async with aiosqlite.connect(DB_PATH) as db:
-        cur = await db.execute("INSERT INTO orders (telegram_id, category, quantity, price, status) VALUES (?,?,?,?,'processing')",
-                               (tid, f"Tanlangan ({qty})", qty, price))
+        cur = await db.execute("INSERT INTO orders (telegram_id, category, quantity, price, status, user_first_name) VALUES (?,?,?,?,'processing',?)",
+                               (tid, f"Tanlangan ({qty})", qty, price, user_first_name))
         order_id = cur.lastrowid
         
         # Natijalarni claimed holatga o'tkazish
