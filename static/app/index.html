@@ -814,9 +814,23 @@ async function pollSearchResults() {
       if(d.status === 'completed') {
         clearInterval(searchPollInterval);
         document.getElementById('search-status-text').innerHTML = '✅ Qidiruv yakunlandi.';
-      } else if(d.status === 'error_floodwait') {
+      } else if(d.status && d.status.startsWith('error_floodwait')) {
         clearInterval(searchPollInterval);
-        document.getElementById('search-status-text').innerHTML = '⚠️ Telegram cheklovi: Birozdan so\'ng qayta urinib ko\'ring (FloodWait).';
+        let msg = "⚠️ Telegram cheklovi: Birozdan so'ng qayta urinib ko'ring (FloodWait).";
+        const parts = d.status.split(':');
+        if (parts.length > 1) {
+            const secs = parseInt(parts[1], 10);
+            let timeStr = "";
+            if (secs >= 3600) {
+                timeStr = Math.floor(secs / 3600) + " soat " + Math.floor((secs % 3600)/60) + " daqiqa";
+            } else if (secs >= 60) {
+                timeStr = Math.floor(secs / 60) + " daqiqa";
+            } else {
+                timeStr = secs + " soniya";
+            }
+            msg = `⚠️ Telegram cheklovi: Akkaunt blokdan chiqishi uchun <b>${timeStr}</b> kutishingiz kerak.`;
+        }
+        document.getElementById('search-status-text').innerHTML = msg;
       }
       renderSearchResults(d.results);
     }

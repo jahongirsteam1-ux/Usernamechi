@@ -545,7 +545,7 @@ async def search_sniper(telegram_id: int, search_id: int, category: str, lang: s
                 if e.seconds > 300:
                     logger.warning(f"Huge FloodWait {e.seconds}s, stopping search")
                     async with aiosqlite.connect(DB_PATH) as db:
-                        await db.execute("UPDATE search_tasks SET status='error_floodwait' WHERE id=?", (search_id,))
+                        await db.execute("UPDATE search_tasks SET status=? WHERE id=?", (f'error_floodwait:{e.seconds}', search_id))
                         # foydalanuvchiga qidiruv uchun pulini/urinishini qaytarish
                         await db.execute("UPDATE users SET free_searches=free_searches+1 WHERE telegram_id=?", (telegram_id,))
                         await db.commit()
@@ -626,6 +626,9 @@ async def claim_sniper(bot, telegram_id: int, order_id: int, usernames: list):
                 await asyncio.sleep(1)
             except FloodWaitError as e:
                 logger.warning(f"FloodWait during claim: {e.seconds}s")
+                if e.seconds > 300:
+                    failed_reasons.append(f"@{username} — <b>FloodWait ({e.seconds} soniya)</b>. Akkaunt vaqtincha bloklandi.")
+                    break
                 await asyncio.sleep(e.seconds)
             except Exception as e:
                 logger.error(f"Claim xato: {e}")
