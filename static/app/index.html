@@ -867,7 +867,7 @@ async function openPostModal() {
     if (d.usernames && d.usernames.length > 0) {
       sel.innerHTML = '<option value="">-- Tanlang --</option>' + d.usernames.map(u => `<option value="${u.username}">@${u.username} (${u.title})</option>`).join('');
     } else {
-      sel.innerHTML = '<option value="">Sizda bo\\'sh usernamelar yo\\'q</option>';
+      sel.innerHTML = '<option value="">Sizda bo\'sh usernamelar yo\'q</option>';
     }
   } catch(e) { sel.innerHTML = '<option value="">Xato yuz berdi</option>'; }
 }
@@ -883,7 +883,7 @@ async function submitPostListing() {
   const username = document.getElementById('post-username-select').value;
   const price = parseInt(document.getElementById('post-price-input').value);
   if (!username) { showToast('Username tanlang!', 'error'); return; }
-  if (!price || price < 1000) { showToast('Narxni to\\'g\\'ri kiriting (min 1,000)', 'error'); return; }
+  if (!price || price < 1000) { showToast('Narxni to\'g\'ri kiriting (min 1,000)', 'error'); return; }
   
   if (!confirm(`Haqiqatdan ham @${username} ni ${price.toLocaleString()} so'mga sotuvga qo'yib, balansingizdan 1,000 so'm e'lon to'lovini yechishga rozimisiz?`)) return;
   
