@@ -59,14 +59,16 @@ async def init_db():
                 free_searches INTEGER DEFAULT 1
             )
         """)
-        try:
-            await db.execute("ALTER TABLE users ADD COLUMN free_searches INTEGER DEFAULT 1")
-            await db.execute("ALTER TABLE users ADD COLUMN first_name TEXT")
-            await db.execute("ALTER TABLE users ADD COLUMN last_name TEXT")
-            await db.execute("ALTER TABLE users ADD COLUMN username TEXT")
-            await db.execute("ALTER TABLE users ADD COLUMN phone TEXT")
-        except Exception:
-            pass
+        try: await db.execute("ALTER TABLE users ADD COLUMN free_searches INTEGER DEFAULT 1")
+        except Exception: pass
+        try: await db.execute("ALTER TABLE users ADD COLUMN first_name TEXT")
+        except Exception: pass
+        try: await db.execute("ALTER TABLE users ADD COLUMN last_name TEXT")
+        except Exception: pass
+        try: await db.execute("ALTER TABLE users ADD COLUMN username TEXT")
+        except Exception: pass
+        try: await db.execute("ALTER TABLE users ADD COLUMN phone TEXT")
+        except Exception: pass
         await db.execute("""
             CREATE TABLE IF NOT EXISTS orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
