@@ -1170,16 +1170,28 @@ async def api_account_usernames(init_data: str = ""):
     try:
         from telethon import TelegramClient
         from telethon.sessions import StringSession
+        from telethon.tl.functions.channels import GetAdminedPublicChannelsRequest
         client = TelegramClient(StringSession(row['session_string']), API_ID, API_HASH)
         await client.connect()
-        dialogs = await client.get_dialogs()
+        
         usernames = []
-        async for dialog in client.iter_dialogs():
-            entity = dialog.entity
-            uname = getattr(entity, 'username', None)
-            title = getattr(entity, 'title', None)
-            if uname and title:
-                usernames.append({"username": uname, "title": title})
+        
+        # O'zining profili username si
+        me = await client.get_me()
+        if me.username:
+            usernames.append({"username": me.username, "title": "Shaxsiy profil"})
+            
+        # Admin bo'lgan ochiq kanallar/guruhlar
+        req = GetAdminedPublicChannelsRequest(by_location=False, check_limit=False)
+        res = await client(req)
+        for ch in res.chats:
+            uname = getattr(ch, 'username', None)
+            title = getattr(ch, 'title', None)
+            if uname:
+                # FAQAT creator yoki admin bo'lsa
+                if getattr(ch, 'creator', False) or getattr(ch, 'admin_rights', None):
+                    usernames.append({"username": uname, "title": title or "Kanal/Guruh"})
+                    
         await client.disconnect()
         return {"usernames": usernames}
     except Exception as e:
