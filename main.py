@@ -69,6 +69,8 @@ async def init_db():
         except Exception: pass
         try: await db.execute("ALTER TABLE users ADD COLUMN phone TEXT")
         except Exception: pass
+        try: await db.execute("ALTER TABLE users ADD COLUMN seller_balance INTEGER DEFAULT 0")
+        except Exception: pass
         await db.execute("""
             CREATE TABLE IF NOT EXISTS orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -142,6 +144,37 @@ async def init_db():
                 telegram_id INTEGER,
                 username TEXT,
                 status TEXT DEFAULT 'monitoring',
+                created_at REAL DEFAULT (strftime('%s','now'))
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS listings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                seller_id INTEGER,
+                username TEXT,
+                price INTEGER,
+                status TEXT DEFAULT 'active',
+                created_at REAL DEFAULT (strftime('%s','now'))
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS listing_orders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                listing_id INTEGER,
+                buyer_id INTEGER,
+                expected_amount INTEGER,
+                status TEXT DEFAULT 'pending',
+                created_at REAL DEFAULT (strftime('%s','now'))
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS withdrawals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                telegram_id INTEGER,
+                amount INTEGER,
+                card_number TEXT,
+                card_owner TEXT,
+                status TEXT DEFAULT 'pending',
                 created_at REAL DEFAULT (strftime('%s','now'))
             )
         """)
@@ -370,6 +403,83 @@ router = Router()
 user_states = {}
 
 import re
+from telethon import TelegramClient
+from telethon.sessions import StringSession
+from telethon.tl.functions.channels import GetAdminedPublicChannelsRequest, DeleteChannelRequest, CreateChannelRequest, UpdateUsernameRequest
+from telethon.tl.functions.account import UpdateUsernameRequest as AccountUpdateUsernameRequest
+import uuid
+
+async def transfer_username(bot, seller_id, buyer_id, username):
+    seller = await get_user(seller_id)
+    buyer = await get_user(buyer_id)
+    if not seller or not seller.get('session_string'): return
+    if not buyer or not buyer.get('session_string'): return
+    
+    seller_client = TelegramClient(StringSession(seller['session_string']), API_ID, API_HASH)
+    buyer_client = TelegramClient(StringSession(buyer['session_string']), API_ID, API_HASH)
+    
+    try:
+        await seller_client.connect()
+        await buyer_client.connect()
+        
+        # 1. Find the channel in seller's account
+        req = GetAdminedPublicChannelsRequest(by_location=False, check_limit=False)
+        res = await seller_client(req)
+        target_channel = None
+        for ch in res.chats:
+            if getattr(ch, 'username', '').lower() == username.lower():
+                target_channel = ch
+                break
+        
+        if not target_channel:
+            # Maybe it's on their profile?
+            me = await seller_client.get_me()
+            if me.username and me.username.lower() == username.lower():
+                await seller_client(AccountUpdateUsernameRequest(username=""))
+            else:
+                logger.error(f"Sotuvchi ({seller_id}) da @{username} topilmadi!")
+                return
+        else:
+            await seller_client(DeleteChannelRequest(channel=target_channel.id))
+        
+        # 2. Claim it on buyer's account immediately
+        # We create a temporary channel
+        created = await buyer_client(CreateChannelRequest(
+            title=f"Usernamechi: @{username}",
+            about="Bu kanal Usernamechi orqali olingan username'ni saqlash uchun.",
+            megagroup=False
+        ))
+        new_channel_id = created.chats[0].id
+        await buyer_client(UpdateUsernameRequest(channel=new_channel_id, username=username))
+        
+        # 3. Notify parties
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+        markup = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="👤 Profilga qo'yish", callback_data=f"setprofile_{username}_{new_channel_id}")]
+        ])
+        try:
+            await bot.send_message(
+                buyer_id, 
+                f"🎉 <b>Tabriklaymiz!</b>\n\n@{username} sizning akkauntingizga o'tkazildi!\n"
+                f"Hozirda u avtomatik yaratilgan maxsus kanalda saqlanmoqda.\n\n"
+                f"Uni o'z profilingizga qo'yishni xohlaysizmi?",
+                reply_markup=markup, parse_mode="HTML"
+            )
+            await bot.send_message(
+                seller_id,
+                f"💰 <b>Username sotildi!</b>\n\n@{username} muvaffaqiyatli o'tkazib berildi va pul balansingizga qo'shildi.",
+                parse_mode="HTML"
+            )
+        except: pass
+        
+    except Exception as e:
+        logger.error(f"Transfer error for @{username}: {e}")
+        try:
+            await bot.send_message(seller_id, f"❌ @{username} ni o'tkazishda xatolik yuz berdi. Iltimos, u profilingiz yoki kanalingizda ekanligini va akkaunt bog'langanini tekshiring.")
+        except: pass
+    finally:
+        await seller_client.disconnect()
+        await buyer_client.disconnect()
 
 @router.channel_post()
 async def auto_payment_handler(message: Message):
@@ -415,7 +525,32 @@ async def auto_payment_handler(message: Message):
                         await message.reply(f"✅ Tasdiqlandi (Topup ID: {topup['id']})")
                     except:
                         pass
-                    break
+                    return # Stop after processing a topup
+
+            # Check marketplace listing orders
+            async with db.execute("SELECT lo.id, lo.listing_id, lo.buyer_id, lo.expected_amount, l.seller_id, l.username, l.price FROM listing_orders lo JOIN listings l ON lo.listing_id = l.id WHERE lo.status='pending'") as c:
+                pending_listings = await c.fetchall()
+
+            for lo in pending_listings:
+                amt = int(lo['expected_amount'])
+                if amt in numbers:
+                    await db.execute("UPDATE listing_orders SET status='completed' WHERE id=?", (lo['id'],))
+                    await db.execute("UPDATE listings SET status='sold' WHERE id=?", (lo['listing_id'],))
+                    
+                    # 10% komissiya
+                    seller_earnings = int(lo['price'] * 0.9)
+                    await db.execute("UPDATE users SET seller_balance=seller_balance+? WHERE telegram_id=?", (seller_earnings, lo['seller_id']))
+                    await db.commit()
+
+                    # Start username transfer in background
+                    asyncio.create_task(transfer_username(message.bot, lo['seller_id'], lo['buyer_id'], lo['username']))
+
+                    try:
+                        await message.reply(f"✅ Tasdiqlandi (Listing Order ID: {lo['id']})")
+                    except:
+                        pass
+                    return # Stop after processing
+
     except Exception as e:
         logger.error(f"Auto-payment error: {e}")
 
@@ -537,6 +672,42 @@ async def text_handler(message: Message):
 async def cancel_order(call: CallbackQuery):
     user_states.pop(call.from_user.id, None)
     await call.message.edit_text("❌ Buyurtma bekor qilindi.")
+
+@router.callback_query(F.data.startswith("setprofile_"))
+async def set_profile_username(call: CallbackQuery):
+    data = call.data.split('_')
+    username = data[1]
+    channel_id = int(data[2])
+    buyer_id = call.from_user.id
+    
+    buyer = await get_user(buyer_id)
+    if not buyer or not buyer.get('session_string'):
+        await call.answer("Akkauntingiz ulanmagan!", show_alert=True)
+        return
+        
+    await call.answer("Jarayon boshlandi...")
+    await call.message.edit_text(f"⏳ @{username} profilingizga o'rnatilmoqda...")
+    
+    from telethon import TelegramClient
+    from telethon.sessions import StringSession
+    from telethon.tl.functions.channels import DeleteChannelRequest
+    from telethon.tl.functions.account import UpdateUsernameRequest as AccountUpdateUsernameRequest
+    
+    client = TelegramClient(StringSession(buyer['session_string']), API_ID, API_HASH)
+    try:
+        await client.connect()
+        # 1. Kanaldan o'chiramiz
+        await client(DeleteChannelRequest(channel=channel_id))
+        
+        # 2. Profilga qo'yamiz
+        await client(AccountUpdateUsernameRequest(username=username))
+        
+        await call.message.edit_text(f"✅ <b>Tabriklaymiz!</b>\n\n@{username} muvaffaqiyatli sizning Telegram profilingizga o'rnatildi!", parse_mode="HTML")
+    except Exception as e:
+        logger.error(f"Set profile error: {e}")
+        await call.message.edit_text(f"❌ Xatolik yuz berdi: {e}\n\nKanal o'chirilgan bo'lishi mumkin. Telegramingizga kirib usernameni o'zingiz qo'yib ko'ring.")
+    finally:
+        await client.disconnect()
 
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
@@ -982,9 +1153,273 @@ async def api_user(init_data: str = ""):
         async with db.execute("SELECT COUNT(*) FROM registered_usernames ru JOIN orders o ON ru.order_id=o.id WHERE o.telegram_id=?", (tid,)) as c:
             total_usernames = (await c.fetchone())[0]
     return {"balance": row["balance"] if row else 0, 
+            "seller_balance": row.get("seller_balance", 0) if row else 0,
             "free_searches": row.get("free_searches", 1) if row else 1,
             "session_string": bool(row["session_string"]) if row else False,
+            "first_name": row.get("first_name", "") if row else "",
             "total_orders": total_orders, "total_usernames": total_usernames}
+
+@app.get("/api/account/usernames")
+async def api_account_usernames(init_data: str = ""):
+    user = verify_init_data(init_data)
+    if not user: raise HTTPException(403)
+    tid = user['id']
+    row = await get_user(tid)
+    if not row or not row.get('session_string'):
+        return {"usernames": []}
+    try:
+        from telethon import TelegramClient
+        from telethon.sessions import StringSession
+        client = TelegramClient(StringSession(row['session_string']), API_ID, API_HASH)
+        await client.connect()
+        dialogs = await client.get_dialogs()
+        usernames = []
+        async for dialog in client.iter_dialogs():
+            entity = dialog.entity
+            uname = getattr(entity, 'username', None)
+            title = getattr(entity, 'title', None)
+            if uname and title:
+                usernames.append({"username": uname, "title": title})
+        await client.disconnect()
+        return {"usernames": usernames}
+    except Exception as e:
+        logger.error(f"Account usernames error: {e}")
+        return {"usernames": []}
+
+# ── MARKETPLACE ────────────────────────────────
+@app.get("/api/marketplace")
+async def api_marketplace(init_data: str = ""):
+    user = verify_init_data(init_data)
+    if not user: raise HTTPException(403)
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("""
+            SELECT l.*, u.first_name as seller_name, u.username as seller_username
+            FROM listings l LEFT JOIN users u ON l.seller_id = u.telegram_id
+            WHERE l.status='active' ORDER BY l.id DESC LIMIT 100
+        """) as c:
+            rows = [dict(r) for r in await c.fetchall()]
+    return rows
+
+@app.get("/api/marketplace/my")
+async def api_marketplace_my(init_data: str = ""):
+    user = verify_init_data(init_data)
+    if not user: raise HTTPException(403)
+    tid = user['id']
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM listings WHERE seller_id=? ORDER BY id DESC", (tid,)) as c:
+            return [dict(r) for r in await c.fetchall()]
+
+@app.post("/api/marketplace/list")
+async def api_marketplace_list(request: Request):
+    data = await request.json()
+    user = verify_init_data(data.get('init_data',''))
+    if not user: raise HTTPException(403)
+    tid = user['id']
+    username = data.get('username','').strip().lstrip('@')
+    price = int(data.get('price', 0))
+    LISTING_FEE = 1000
+    
+    if not username or price < 1000:
+        return {"ok": False, "error": "Username va narx to'g'ri kiriting (min 1,000 so'm)"}
+    
+    row = await get_user(tid)
+    if not row or not row.get('session_string'):
+        return {"ok": False, "error": "Avval akkauntingizni ulang"}
+    if (row['balance'] or 0) < LISTING_FEE:
+        return {"ok": False, "error": f"E'lon joylash narxi {LISTING_FEE:,} so'm. Balansingiz yetarli emas."}
+    
+    # Check if already listed
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT id FROM listings WHERE username=? AND status='active'", (username,)) as c:
+            if await c.fetchone():
+                return {"ok": False, "error": "Bu username allaqachon sotuvda"}
+    
+    await deduct_balance(tid, LISTING_FEE)
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("INSERT INTO listings (seller_id, username, price) VALUES (?,?,?)", (tid, username, price))
+        await db.commit()
+    return {"ok": True}
+
+@app.post("/api/marketplace/cancel")
+async def api_marketplace_cancel(request: Request):
+    data = await request.json()
+    user = verify_init_data(data.get('init_data',''))
+    if not user: raise HTTPException(403)
+    tid = user['id']
+    listing_id = data.get('listing_id')
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT seller_id FROM listings WHERE id=?", (listing_id,)) as c:
+            row = await c.fetchone()
+        if not row or row[0] != tid:
+            return {"ok": False, "error": "Ruxsat yo'q"}
+        await db.execute("UPDATE listings SET status='cancelled' WHERE id=?", (listing_id,))
+        await db.commit()
+    return {"ok": True}
+
+@app.post("/api/marketplace/buy")
+async def api_marketplace_buy(request: Request):
+    data = await request.json()
+    user = verify_init_data(data.get('init_data',''))
+    if not user: raise HTTPException(403)
+    tid = user['id']
+    listing_id = int(data.get('listing_id', 0))
+    
+    row = await get_user(tid)
+    if not row or not row.get('session_string'):
+        return {"ok": False, "error": "Avval akkauntingizni ulang!"}
+        
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM listings WHERE id=? AND status='active'", (listing_id,)) as c:
+            listing = await c.fetchone()
+        if not listing:
+            return {"ok": False, "error": "E'lon topilmadi yoki allaqachon sotilgan"}
+        if listing['seller_id'] == tid:
+            return {"ok": False, "error": "O'z e'loningizni sotib ololmaysiz"}
+        
+        # Generate unique amount
+        for _ in range(100):
+            unique_amount = listing['price'] + random.randint(1, 99)
+            async with db.execute("SELECT id FROM listing_orders WHERE expected_amount=? AND status='pending'", (unique_amount,)) as c:
+                if not await c.fetchone():
+                    await db.execute(
+                        "INSERT INTO listing_orders (listing_id, buyer_id, expected_amount) VALUES (?,?,?)",
+                        (listing_id, tid, unique_amount)
+                    )
+                    await db.commit()
+                    card = await get_setting("payment_card", "")
+                    return {"ok": True, "amount": unique_amount, "card": card, "username": listing['username']}
+    
+    return {"ok": False, "error": "Xatolik yuz berdi"}
+
+# ── SELLER BALANCE & WITHDRAWAL ────────────────
+@app.get("/api/seller/balance")
+async def api_seller_balance(init_data: str = ""):
+    user = verify_init_data(init_data)
+    if not user: raise HTTPException(403)
+    row = await get_user(user['id'])
+    return {"seller_balance": row.get('seller_balance', 0) if row else 0}
+
+@app.post("/api/seller/withdraw")
+async def api_seller_withdraw(request: Request):
+    data = await request.json()
+    user = verify_init_data(data.get('init_data',''))
+    if not user: raise HTTPException(403)
+    tid = user['id']
+    amount = int(data.get('amount', 0))
+    card_number = data.get('card_number','').strip()
+    card_owner = data.get('card_owner','').strip()
+    
+    if not card_number or not card_owner:
+        return {"ok": False, "error": "Karta raqami va egasini kiriting"}
+    
+    row = await get_user(tid)
+    seller_bal = row.get('seller_balance', 0) if row else 0
+    if amount < 10000:
+        return {"ok": False, "error": "Minimal yechib olish: 10,000 so'm"}
+    if seller_bal < amount:
+        return {"ok": False, "error": f"Sotuvchi balansingiz yetarli emas ({seller_bal:,} so'm)"}
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE users SET seller_balance=seller_balance-? WHERE telegram_id=?", (amount, tid))
+        await db.execute("INSERT INTO withdrawals (telegram_id, amount, card_number, card_owner) VALUES (?,?,?,?)",
+                         (tid, amount, card_number, card_owner))
+        await db.commit()
+    
+    # Admin ga xabar
+    first_name = user.get('first_name', 'Foydalanuvchi')
+    bot_instance = Bot(token=BOT_TOKEN)
+    for admin_id in ADMIN_IDS:
+        try:
+            await bot_instance.send_message(
+                admin_id,
+                f"💸 <b>Pul yechish so'rovi!</b>\n\n"
+                f"👤 {first_name} (ID: {tid})\n"
+                f"💰 Summa: <b>{amount:,} so'm</b>\n"
+                f"💳 Karta: <b>{card_number}</b>\n"
+                f"👤 Egasi: <b>{card_owner}</b>\n\n"
+                f"Admin paneldan tasdiqlang yoki rad eting.",
+                parse_mode="HTML"
+            )
+        except: pass
+    await bot_instance.session.close()
+    
+    await bot_instance.session.close() if not bot_instance.session.closed else None
+    return {"ok": True, "message": "So'rovingiz qabul qilindi. Admin 24 soat ichida to'lov amalga oshiradi va sizga xabar beriladi."}
+
+# ── ADMIN WITHDRAWALS ──────────────────────────
+@app.get("/api/admin/withdrawals")
+async def admin_withdrawals(x_admin_token: str = Header(default="")):
+    for aid in ADMIN_IDS:
+        if get_admin_token(aid) == x_admin_token: break
+    else: raise HTTPException(403)
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("""
+            SELECT w.*, u.first_name FROM withdrawals w 
+            LEFT JOIN users u ON w.telegram_id=u.telegram_id
+            ORDER BY w.id DESC LIMIT 100
+        """) as c:
+            return [dict(r) for r in await c.fetchall()]
+
+@app.post("/api/admin/withdrawal/confirm")
+async def admin_withdrawal_confirm(request: Request, x_admin_token: str = Header(default="")):
+    for aid in ADMIN_IDS:
+        if get_admin_token(aid) == x_admin_token: break
+    else: raise HTTPException(403)
+    data = await request.json()
+    wid = data['withdrawal_id']
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM withdrawals WHERE id=?", (wid,)) as c:
+            w = await c.fetchone()
+        if not w: return {"ok": False, "error": "Topilmadi"}
+        await db.execute("UPDATE withdrawals SET status='paid' WHERE id=?", (wid,))
+        await db.commit()
+    bot_instance = Bot(token=BOT_TOKEN)
+    try:
+        await bot_instance.send_message(
+            w['telegram_id'],
+            f"✅ <b>To'lov amalga oshirildi!</b>\n\n"
+            f"💰 <b>{w['amount']:,} so'm</b> kartangizga o'tkazildi.\n"
+            f"💳 Karta: <b>{w['card_number']}</b>",
+            parse_mode="HTML"
+        )
+    except: pass
+    finally:
+        await bot_instance.session.close()
+    return {"ok": True}
+
+@app.post("/api/admin/withdrawal/reject")
+async def admin_withdrawal_reject(request: Request, x_admin_token: str = Header(default="")):
+    for aid in ADMIN_IDS:
+        if get_admin_token(aid) == x_admin_token: break
+    else: raise HTTPException(403)
+    data = await request.json()
+    wid = data['withdrawal_id']
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM withdrawals WHERE id=?", (wid,)) as c:
+            w = await c.fetchone()
+        if not w: return {"ok": False, "error": "Topilmadi"}
+        await db.execute("UPDATE withdrawals SET status='rejected' WHERE id=?", (wid,))
+        # Pulni qaytarish
+        await db.execute("UPDATE users SET seller_balance=seller_balance+? WHERE telegram_id=?", (w['amount'], w['telegram_id']))
+        await db.commit()
+    bot_instance = Bot(token=BOT_TOKEN)
+    try:
+        await bot_instance.send_message(
+            w['telegram_id'],
+            f"❌ <b>To'lov rad etildi.</b>\n\n"
+            f"<b>{w['amount']:,} so'm</b> sotuvchi balansingizga qaytarildi.",
+            parse_mode="HTML"
+        )
+    except: pass
+    finally:
+        await bot_instance.session.close()
+    return {"ok": True}
 
 @app.get("/api/card")
 async def api_card():

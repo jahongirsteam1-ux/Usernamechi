@@ -464,28 +464,96 @@
   </div>
 </div>
 
-<!-- ORDERS PAGE -->
-<div class="page" id="page-orders">
-  <div class="page-header">📋 <span>Buyurtmalarim</span></div>
-  <div id="orders-list">
+<!-- MARKETPLACE PAGE -->
+<div class="page" id="page-market">
+  <div class="page-header">🛒 <span>Sotuv bozori</span></div>
+  
+  <div style="display:flex;gap:10px;margin-bottom:16px;">
+    <button class="btn btn-primary" style="margin:0;flex:1;" onclick="loadMarketplace()">Barcha e'lonlar</button>
+    <button class="btn btn-outline" style="margin:0;flex:1;" onclick="loadMyListings()">Mening e'lonlarim</button>
+  </div>
+
+  <div id="market-list">
     <div style="text-align:center;padding:40px;color:var(--muted);">
-      <div style="font-size:48px;margin-bottom:12px;">📭</div>
-      Buyurtmalar yo'q
+      <div class="spinner" style="margin:0 auto 12px;"></div>
+      Yuklanmoqda...
     </div>
   </div>
 </div>
+
+<!-- MARKET BUY MODAL -->
+<div class="card" id="market-buy-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:1000; width:90%; max-width:400px; box-shadow:0 10px 40px rgba(0,0,0,0.5);">
+  <div class="section-title">Username sotib olish</div>
+  <div style="margin-bottom:16px;text-align:center;">
+    <div style="color:var(--muted);font-size:13px;margin-bottom:8px;">Username:</div>
+    <div style="font-size:24px;font-weight:800;color:var(--accent);" id="market-buy-username">@...</div>
+  </div>
+  
+  <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:12px;margin-bottom:16px;color:#f87171;font-size:13px;font-weight:600;">
+    DIQQAT! Karta raqamiga aynan quyidagi summani o'tkazing:
+  </div>
+
+  <div style="text-align:center;margin-bottom:16px;">
+    <div style="font-size:32px;font-weight:800;color:var(--success);margin-bottom:8px;" id="market-buy-amount">0 so'm</div>
+  </div>
+
+  <div style="background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:16px;margin-bottom:16px;text-align:center;">
+    <div style="color:var(--muted);font-size:12px;margin-bottom:6px;">Karta raqami:</div>
+    <div id="market-buy-card" style="font-size:20px;font-weight:700;letter-spacing:2px;">...</div>
+  </div>
+  
+  <div style="color:var(--muted);font-size:12px;text-align:center;margin-bottom:16px;">
+    ✅ To'lov qilishingiz bilan username profilingizga avtomatik o'tkaziladi!
+  </div>
+
+  <button class="btn btn-primary" onclick="closeMarketBuy()">Yopish</button>
+</div>
+<div id="market-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:999;" onclick="closeMarketBuy()"></div>
 
 <!-- ACCOUNT PAGE -->
 <div class="page" id="page-account">
   <div class="page-header">🔗 <span>Akkaunt</span></div>
 
+  <!-- Sotuvchi Balansi & Pul yechish -->
+  <div class="card" id="seller-balance-wrap" style="display:none; background:linear-gradient(135deg,rgba(16,185,129,0.15),rgba(6,182,212,0.1)); border-color:rgba(16,185,129,0.3);">
+    <div class="label" style="color:var(--muted);font-size:13px;margin-bottom:8px;">Sotuvchi balansi (Savdodan tushgan)</div>
+    <div class="amount" id="seller-balance-amount" style="font-size:32px;font-weight:800;color:var(--success);margin-bottom:12px;">0 so'm</div>
+    
+    <div id="withdraw-form" style="display:none;margin-top:16px;border-top:1px solid rgba(255,255,255,0.1);padding-top:16px;">
+      <div class="form-group">
+        <label>YECHIB OLISH SUMMASI</label>
+        <input type="number" id="withdraw-amount" placeholder="Min 10,000" min="10000">
+      </div>
+      <div class="form-group">
+        <label>KARTA RAQAMI</label>
+        <input type="text" id="withdraw-card" placeholder="8600 1234 5678 9012">
+      </div>
+      <div class="form-group">
+        <label>KARTA EGASI (Ism Familiya)</label>
+        <input type="text" id="withdraw-name" placeholder="Ali Valiyev">
+      </div>
+      <button class="btn btn-success" onclick="submitWithdraw()">Tasdiqlash</button>
+      <button class="btn btn-outline" onclick="document.getElementById('withdraw-form').style.display='none'">Bekor qilish</button>
+    </div>
+    
+    <button class="btn btn-primary" style="margin:0;" onclick="document.getElementById('withdraw-form').style.display='block'" id="btn-show-withdraw">Yechib olish</button>
+  </div>
+
+  <!-- Mening usernamelarim -->
+  <div class="card" id="my-usernames-wrap" style="display:none;">
+    <div class="section-title">Mening <span>usernamlarim</span></div>
+    <div id="my-usernames-list">
+      <div style="text-align:center;padding:20px;color:var(--muted);"><div class="spinner" style="margin:0 auto 12px;"></div>Yuklanmoqda...</div>
+    </div>
+  </div>
+
   <!-- Akkaunt ulash nima uchun kerak -->
   <div style="background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(6,182,212,0.1));border:1px solid rgba(124,58,237,0.3);border-radius:16px;padding:16px;margin-bottom:16px;">
     <div style="font-size:15px;font-weight:700;margin-bottom:8px;">🤔 Nima uchun akkaunt ulash kerak?</div>
     <div style="color:var(--muted);font-size:13px;line-height:1.7;">
-      Bot username qidirish jarayonida topilgan bo'sh usernamelarni <b>sizning akkauntingiz nomidan</b> band qiladi. Buning uchun sizning Telegram akkauntingizga kirish kerak bo'ladi.
+      Bot username qidirish jarayonida topilgan bo'sh usernamelarni <b>sizning akkauntingiz nomidan</b> band qiladi. Shuningdek, <b>usernamelarni sotish va sotib olish</b> uchun ham akkauntingiz ulanishi shart!
       <br><br>
-      🔒 <b>Xavfsizlik:</b> Parolingiz saqlanmaydi. Faqat maxsus "session" kaliti saqlanib, u orqali faqat username band qilish amali bajariladi.
+      🔒 <b>Xavfsizlik:</b> Parolingiz saqlanmaydi. Faqat maxsus "session" kaliti saqlanib, u orqali faqat username band qilish va sotuv amallari bajariladi.
     </div>
   </div>
 
@@ -552,9 +620,9 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
     Nishon
   </button>
-  <button id="nav-orders" onclick="goPage('orders')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-    Buyurtmalar
+  <button id="nav-market" onclick="goPage('market')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+    Sotuv
   </button>
   <button id="nav-account" onclick="goPage('account')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -601,10 +669,186 @@ async function loadUserData() {
       document.getElementById('session-form-wrap').style.display = 'none';
       document.getElementById('disconnect-wrap').style.display = 'block';
       document.getElementById('no-session-warn').style.display = 'none';
+      
+      document.getElementById('seller-balance-wrap').style.display = 'block';
+      document.getElementById('seller-balance-amount').textContent = (userData.seller_balance || 0).toLocaleString() + ' so\'m';
+      
+      loadMyUsernames();
     } else {
       document.getElementById('no-session-warn').style.display = 'block';
+      document.getElementById('seller-balance-wrap').style.display = 'none';
+      document.getElementById('my-usernames-wrap').style.display = 'none';
     }
   } catch(e) { console.error(e); }
+}
+
+async function loadMyUsernames() {
+  document.getElementById('my-usernames-wrap').style.display = 'block';
+  const listEl = document.getElementById('my-usernames-list');
+  try {
+    const res = await fetch(`${API}/api/account/usernames?init_data=${encodeURIComponent(tg.initData)}`);
+    const d = await res.json();
+    if (d.usernames && d.usernames.length > 0) {
+      listEl.innerHTML = d.usernames.map(u => `
+        <div class="order-item" style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-weight:700;">@${u.username}</div>
+            <div style="font-size:12px; color:var(--muted);">${u.title}</div>
+          </div>
+          <button class="btn btn-outline" style="padding:6px 12px; width:auto; font-size:12px; margin:0;" onclick="listUsername('${u.username}')">Sotish</button>
+        </div>
+      `).join('');
+    } else {
+      listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">Sizda bo\'sh usernamelar yo\'q</div>';
+    }
+  } catch(e) {
+    listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--danger);">Yuklashda xato</div>';
+  }
+}
+
+async function submitWithdraw() {
+  const amount = parseInt(document.getElementById('withdraw-amount').value);
+  const card_number = document.getElementById('withdraw-card').value;
+  const card_owner = document.getElementById('withdraw-name').value;
+  
+  if (!amount || !card_number || !card_owner) { showToast("Barcha maydonlarni to'ldiring", "error"); return; }
+  
+  const btn = event.target;
+  btn.disabled = true;
+  btn.innerText = "Yuborilmoqda...";
+  try {
+    const res = await fetch(`${API}/api/seller/withdraw`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({init_data: tg.initData, amount, card_number, card_owner})
+    });
+    const d = await res.json();
+    if(d.ok) {
+      showToast(d.message, "success");
+      document.getElementById('withdraw-form').style.display = 'none';
+      loadUserData();
+    } else {
+      showToast(d.error, "error");
+    }
+  } catch(e) { showToast("Xato", "error"); }
+  btn.disabled = false;
+  btn.innerText = "Tasdiqlash";
+}
+
+async function listUsername(username) {
+  const priceStr = prompt(`@${username} ni qanchaga sotmoqchisiz?\n(E'lon berish narxi 1,000 so'm, sotilganda 10% komissiya olinadi)`, "50000");
+  if (!priceStr) return;
+  const price = parseInt(priceStr);
+  if (isNaN(price) || price < 1000) { alert("Xato narx kiritildi!"); return; }
+  
+  if (!confirm(`Haqiqatdan ham @${username} ni ${price.toLocaleString()} so'mga sotuvga qo'yib, balansingizdan 1,000 so'm e'lon to'lovini yechishga rozimisiz?`)) return;
+  
+  try {
+    const res = await fetch(`${API}/api/marketplace/list`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({init_data: tg.initData, username, price})
+    });
+    const d = await res.json();
+    if(d.ok) {
+      showToast("E'lon qo'shildi!", "success");
+      loadUserData();
+      goPage('market');
+    } else {
+      showToast(d.error, "error");
+    }
+  } catch(e) { showToast("Xato", "error"); }
+}
+
+async function loadMarketplace() {
+  const listEl = document.getElementById('market-list');
+  listEl.innerHTML = '<div style="text-align:center;padding:40px;"><div class="spinner" style="margin:0 auto 12px;"></div>Yuklanmoqda...</div>';
+  try {
+    const res = await fetch(`${API}/api/marketplace?init_data=${encodeURIComponent(tg.initData)}`);
+    const d = await res.json();
+    if (d.length > 0) {
+      listEl.innerHTML = d.map(l => `
+        <div class="order-item">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:800; font-size:18px; color:var(--accent);">@${l.username}</div>
+              <div style="font-size:12px; color:var(--muted); margin-top:4px;">Sotuvchi: ${l.seller_name || l.seller_username || 'Foydalanuvchi'}</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-weight:700; font-size:16px;">${l.price.toLocaleString()} so'm</div>
+              <button class="btn btn-primary" style="padding:6px 12px; width:auto; font-size:12px; margin:8px 0 0 0;" onclick="buyListing(${l.id})">Sotib olish</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    } else {
+      listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);">Sotuvda usernamelar yo\'q</div>';
+    }
+  } catch(e) { listEl.innerHTML = 'Xato'; }
+}
+
+async function loadMyListings() {
+  const listEl = document.getElementById('market-list');
+  listEl.innerHTML = '<div style="text-align:center;padding:40px;"><div class="spinner" style="margin:0 auto 12px;"></div>Yuklanmoqda...</div>';
+  try {
+    const res = await fetch(`${API}/api/marketplace/my?init_data=${encodeURIComponent(tg.initData)}`);
+    const d = await res.json();
+    if (d.length > 0) {
+      listEl.innerHTML = d.map(l => {
+        const statTxt = {active:'Aktiv', sold:'Sotildi', cancelled:'Bekor qilingan'};
+        return `
+        <div class="order-item">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:800; font-size:18px; color:var(--accent);">@${l.username}</div>
+              <div style="font-size:12px; color:var(--muted); margin-top:4px;">Narxi: ${l.price.toLocaleString()} so'm</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-weight:700; font-size:14px; color:${l.status=='active'?'var(--success)':'var(--muted)'}">${statTxt[l.status]||l.status}</div>
+              ${l.status == 'active' ? `<button class="btn btn-danger" style="padding:4px 8px; font-size:11px; margin:4px 0 0; width:auto;" onclick="cancelListing(${l.id})">O'chirish</button>` : ''}
+            </div>
+          </div>
+        </div>
+      `}).join('');
+    } else {
+      listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);">Sizda e\'lonlar yo\'q</div>';
+    }
+  } catch(e) { listEl.innerHTML = 'Xato'; }
+}
+
+async function cancelListing(id) {
+  if(!confirm("E'lonni o'chirasizmi? (E'lon puli qaytarilmaydi)")) return;
+  try {
+    const res = await fetch(`${API}/api/marketplace/cancel`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({init_data: tg.initData, listing_id: id})
+    });
+    const d = await res.json();
+    if(d.ok) { showToast("O'chirildi", "success"); loadMyListings(); }
+    else { showToast(d.error, "error"); }
+  } catch(e) {}
+}
+
+async function buyListing(id) {
+  try {
+    const res = await fetch(`${API}/api/marketplace/buy`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({init_data: tg.initData, listing_id: id})
+    });
+    const d = await res.json();
+    if(d.ok) {
+      document.getElementById('market-buy-username').textContent = '@' + d.username;
+      document.getElementById('market-buy-amount').textContent = d.amount.toLocaleString() + " so'm";
+      document.getElementById('market-buy-card').textContent = d.card.slice(0,4)+' '+d.card.slice(4,8)+' '+d.card.slice(8,12)+' '+d.card.slice(12);
+      document.getElementById('market-buy-modal').style.display = 'block';
+      document.getElementById('market-overlay').style.display = 'block';
+    } else {
+      showToast(d.error, "error");
+    }
+  } catch(e) { showToast("Xato yuz berdi", "error"); }
+}
+
+function closeMarketBuy() {
+  document.getElementById('market-buy-modal').style.display = 'none';
+  document.getElementById('market-overlay').style.display = 'none';
 }
 
 async function loadCardNumber() {
@@ -680,6 +924,8 @@ function goPage(name) {
   if (navBtn) navBtn.classList.add('active');
   if(name==='orders') loadOrders();
   if(name==='monitor') loadMonitors();
+  if(name==='market') loadMarketplace();
+  if(name==='my-listings') loadMyListings();
   if(name==='balance'||name==='home') { loadUserData(); loadOrders(); }
 }
 

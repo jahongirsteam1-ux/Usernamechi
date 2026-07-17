@@ -115,6 +115,10 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
     Buyurtma
   </button>
+  <button id="nav-withdrawals" onclick="goPage('withdrawals',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+    Pul yechish
+  </button>
   <button id="nav-settings" onclick="goPage('settings',this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     Sozlama
@@ -150,6 +154,11 @@
 <div class="page" id="page-orders">
   <div class="page-title"><span>Buyurtmalar</span> 📋</div>
   <div id="orders-list"><div class="empty"><div class="e-icon">📋</div><div class="e-text">Yuklanmoqda...</div></div></div>
+</div>
+
+<div class="page" id="page-withdrawals">
+  <div class="page-title"><span>Pul yechish so'rovlari</span> 💸</div>
+  <div id="withdrawals-list"><div class="empty"><div class="e-icon">💸</div><div class="e-text">Yuklanmoqda...</div></div></div>
 </div>
 
 <div class="page" id="page-settings">
@@ -190,13 +199,17 @@ async function checkAuth() {
   } catch(e) {}
 }
 
-function goPage(name, btn) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-  document.getElementById('page-' + name).classList.add('active');
-  if (btn) btn.classList.add('active');
-  const loaders = {dashboard:loadDashboard, payments:loadPayments, users:loadUsers, orders:loadAdminOrders, settings:loadSettings};
-  if (loaders[name]) loaders[name]();
+function goPage(pageId, btn) {
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
+  document.getElementById(`page-${pageId}`).classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(pageId === 'dashboard') { loadDashboard(); }
+  if(pageId === 'payments') loadPayments();
+  if(pageId === 'users') loadUsers();
+  if(pageId === 'orders') loadAdminOrders();
+  if(pageId === 'withdrawals') loadWithdrawals();
+  if(pageId === 'settings') loadSettings();
 }
 
 async function loadDashboard() {
@@ -264,6 +277,59 @@ async function approvePayment(id, userId) {
 async function rejectPayment(id, userId) {
   if (!confirm("Rad etishni tasdiqlaysizmi?")) return;
   try { await fetch('/api/admin/payment/reject', {method:'POST',headers:{...h(),'Content-Type':'application/json'},body:JSON.stringify({payment_id:id,telegram_id:userId})}); showToast("Tolov rad etildi"); loadDashboard(); loadPayments(); } catch(e) { showToast('Xato','error'); }
+}
+
+async function loadWithdrawals() {
+  try {
+    const res = await fetch('/api/admin/withdrawals', {headers: h()});
+    const withdrawals = await res.json();
+    const el = document.getElementById('withdrawals-list');
+    if (!withdrawals.length) { el.innerHTML = '<div class="empty"><div class="e-icon">💸</div><div class="e-text">Pul yechish so\'rovlari yo\'q</div></div>'; return; }
+    const sTxt = {pending:'⏳ Kutilmoqda', paid:'✅ To\'landi', rejected:'❌ Rad etildi'};
+    const sCls = {pending:'b-pending', paid:'b-approved', rejected:'b-rejected'};
+    el.innerHTML = withdrawals.map(w => `
+      <div class="payment-card">
+        <div class="p-id">So'rov #${w.id}</div>
+        <div class="p-user">👤 ${w.first_name || w.telegram_id}</div>
+        <div class="p-amount">${(w.amount||0).toLocaleString()} so'm</div>
+        <div class="p-date" style="color:var(--text);margin-bottom:4px;">💳 Karta: ${w.card_number}</div>
+        <div class="p-date" style="color:var(--text);margin-bottom:12px;">👤 Egasi: ${w.card_owner}</div>
+        <div class="p-date">🕐 ${new Date(w.created_at*1000).toLocaleString()}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span class="badge ${sCls[w.status]||''}">${sTxt[w.status]||w.status}</span>
+          ${w.status==='pending'?`<div style="display:flex;gap:8px;">
+            <button class="btn btn-approve" style="flex:none;padding:8px 14px;" onclick="confirmWithdrawal(${w.id})">✅ To'ladim</button>
+            <button class="btn btn-reject" style="flex:none;padding:8px 14px;" onclick="rejectWithdrawal(${w.id})">❌ Rad</button>
+          </div>`:''}
+        </div>
+      </div>`).join('');
+  } catch(e) {}
+}
+
+async function confirmWithdrawal(id) {
+  if (!confirm("Haqiqatdan ham pulni karta raqamiga o'tkazib bo'ldingizmi?")) return;
+  try {
+    const res = await fetch('/api/admin/withdrawal/confirm', {
+      method:'POST', headers:{...h(),'Content-Type':'application/json'},
+      body: JSON.stringify({withdrawal_id: id})
+    });
+    const d = await res.json();
+    if(d.ok) { showToast("Tasdiqlandi", "success"); loadWithdrawals(); }
+    else showToast(d.error, "error");
+  } catch(e) { showToast("Xato", "error"); }
+}
+
+async function rejectWithdrawal(id) {
+  if (!confirm("Pul yechishni rad etasizmi? (Pul sotuvchiga qaytadi)")) return;
+  try {
+    const res = await fetch('/api/admin/withdrawal/reject', {
+      method:'POST', headers:{...h(),'Content-Type':'application/json'},
+      body: JSON.stringify({withdrawal_id: id})
+    });
+    const d = await res.json();
+    if(d.ok) { showToast("Rad etildi", "success"); loadWithdrawals(); }
+    else showToast(d.error, "error");
+  } catch(e) { showToast("Xato", "error"); }
 }
 
 async function loadUsers() {
