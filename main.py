@@ -271,7 +271,9 @@ def generate_usernames(base_word: str, lang: str = 'uz', limit: int = 2000) -> l
     # ── LEKSIKON POOL (kamyob so'zlar — ko'pi bo'sh chiqadi) ──────
     if lang == 'uz':
         # Haqiqiy O'zbek tili lug'ati (27,000+ so'z)
-        dict_pool = uz_dict.copy()
+        # Sifatli bo'lmagan qo'shimchalarni filtrlash (fe'llar, ko'plik, kelishik)
+        bad_suffixes = ('moq', 'roq', 'dek', 'dan', 'ning', 'lar', 'gach', 'qan', 'gan', 'digan', 'mish', 'siz')
+        dict_pool = [w for w in uz_dict if not w.endswith(bad_suffixes)]
     else:
         dict_pool = [
             w for w in (nouns + adjectives)
@@ -319,8 +321,17 @@ def generate_usernames(base_word: str, lang: str = 'uz', limit: int = 2000) -> l
             [u for u in dict_pool if 5 <= len(u) <= 9]
         )
     else:
-        # TURLI rejim: barcha pool
-        pool = curated + dict_pool
+        # TURLI rejim: barcha pool va chiroyli kombinatsiyalar
+        pool = []
+        for u in curated:
+            pool.append(u)
+            if len(u) <= 8:
+                if random.random() > 0.7: pool.append(f"{u}_uz")
+                if random.random() > 0.7: pool.append(f"{u}_uzb")
+                if random.random() > 0.7: pool.append(f"the_{u}")
+                if random.random() > 0.8: pool.append(f"{u}_official")
+                if random.random() > 0.8: pool.append(f"{u}_bot")
+        pool += dict_pool
 
     # To'liq aralashtiramiz, shunda ommabop va kamyob so'zlar aralashib ketadi (tezroq bo'shini topish uchun)
     random.shuffle(pool)
