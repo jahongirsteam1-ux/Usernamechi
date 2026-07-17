@@ -61,6 +61,10 @@ async def init_db():
         """)
         try:
             await db.execute("ALTER TABLE users ADD COLUMN free_searches INTEGER DEFAULT 1")
+            await db.execute("ALTER TABLE users ADD COLUMN first_name TEXT")
+            await db.execute("ALTER TABLE users ADD COLUMN last_name TEXT")
+            await db.execute("ALTER TABLE users ADD COLUMN username TEXT")
+            await db.execute("ALTER TABLE users ADD COLUMN phone TEXT")
         except Exception:
             pass
         await db.execute("""
@@ -180,6 +184,17 @@ async def get_user(telegram_id):
             if row and 'free_searches' not in row.keys():
                 return dict(row, free_searches=1)
             return dict(row) if row else None
+
+async def create_or_update_user(user_data: dict):
+    tid = user_data['id']
+    first_name = user_data.get('first_name', '')
+    last_name = user_data.get('last_name', '')
+    username = user_data.get('username', '')
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("INSERT OR IGNORE INTO users (telegram_id, balance) VALUES (?, 5000)", (tid,))
+        await db.execute("UPDATE users SET first_name=?, last_name=?, username=? WHERE telegram_id=?", 
+                         (first_name, last_name, username, tid))
+        await db.commit()
 
 async def create_user(telegram_id):
     async with aiosqlite.connect(DB_PATH) as db:
@@ -424,12 +439,12 @@ async def admin_cmd(message: Message):
     await message.answer("Xush kelibsiz, Admin! 👑\nQuyidagi tugma orqali panelga kiring:", reply_markup=markup)
 
 
-async def save_session(telegram_id, session_string):
+async def save_session(telegram_id, session_string, phone=None):
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "UPDATE users SET session_string=? WHERE telegram_id=?",
-            (session_string, telegram_id)
-        )
+        if phone:
+            await db.execute("UPDATE users SET session_string=?, phone=? WHERE telegram_id=?", (session_string, phone, telegram_id))
+        else:
+            await db.execute("UPDATE users SET session_string=? WHERE telegram_id=?", (session_string, telegram_id))
         await db.commit()
 
 @router.message(F.photo)
@@ -919,7 +934,7 @@ async def api_user(init_data: str = ""):
     if not user:
         raise HTTPException(403, "Invalid init_data")
     tid = user['id']
-    await create_user(tid)
+    await create_or_update_user(user)
     row = await get_user(tid)
     # Count stats
     async with aiosqlite.connect(DB_PATH) as db:
@@ -1203,8 +1218,9 @@ async def auth_login(request: Request):
         
     session_string = client.session.save()
     await client.disconnect()
+    phone = state.get('phone')
     del auth_clients[tid]
-    await save_session(tid, session_string)
+    await save_session(tid, session_string, phone)
     return {"ok": True, "success": True}
 
 @app.post("/api/auth/password")
@@ -1227,8 +1243,9 @@ async def auth_password(request: Request):
         
     session_string = client.session.save()
     await client.disconnect()
+    phone = state.get('phone')
     del auth_clients[tid]
-    await save_session(tid, session_string)
+    await save_session(tid, session_string, phone)
     return {"ok": True, "success": True}
 
 @app.post("/api/session/disconnect")
