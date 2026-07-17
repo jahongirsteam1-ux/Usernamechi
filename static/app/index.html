@@ -466,7 +466,10 @@
 
 <!-- MARKETPLACE PAGE -->
 <div class="page" id="page-market">
-  <div class="page-header">🛒 <span>Sotuv bozori</span></div>
+  <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
+    <div>🛒 <span>Sotuv bozori</span></div>
+    <button class="btn btn-primary" style="padding:6px 12px; width:auto; font-size:12px; margin:0;" onclick="openPostModal()">➕ E'lon joylash</button>
+  </div>
   
   <div style="display:flex;gap:10px;margin-bottom:16px;">
     <button class="btn btn-primary" style="margin:0;flex:1;" onclick="loadMarketplace()">Barcha e'lonlar</button>
@@ -508,7 +511,32 @@
 
   <button class="btn btn-primary" onclick="closeMarketBuy()">Yopish</button>
 </div>
-<div id="market-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:999;" onclick="closeMarketBuy()"></div>
+
+<!-- MARKET POST MODAL -->
+<div class="card" id="market-post-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:1000; width:90%; max-width:400px; box-shadow:0 10px 40px rgba(0,0,0,0.5);">
+  <div class="section-title">E'lon joylash</div>
+  
+  <div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:12px;padding:12px;margin-bottom:16px;color:#34d399;font-size:13px;font-weight:600;">
+    E'lon berish narxi: 1,000 so'm (balansingizdan yechiladi). Sotilganda 10% komissiya olinadi.
+  </div>
+
+  <div class="form-group">
+    <label>USERNAME TANLANG</label>
+    <select id="post-username-select" style="width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:12px; padding:12px; color:var(--text); font-family:inherit; outline:none; font-size:14px; margin-bottom:16px;">
+      <option value="">Yuklanmoqda...</option>
+    </select>
+  </div>
+  
+  <div class="form-group">
+    <label>NARXI (so'm)</label>
+    <input type="number" id="post-price-input" placeholder="Masalan: 50000">
+  </div>
+
+  <button class="btn btn-primary" onclick="submitPostListing()" style="margin-bottom:8px;">Joylash</button>
+  <button class="btn btn-outline" onclick="closeMarketPost()">Bekor qilish</button>
+</div>
+
+<div id="market-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:999;" onclick="closeMarketBuy(); closeMarketPost();"></div>
 
 <!-- ACCOUNT PAGE -->
 <div class="page" id="page-account">
@@ -825,6 +853,61 @@ async function cancelListing(id) {
     if(d.ok) { showToast("O'chirildi", "success"); loadMyListings(); }
     else { showToast(d.error, "error"); }
   } catch(e) {}
+}
+
+async function openPostModal() {
+  if(!userData.session_string) { showToast("Avval akkauntni ulang!", "error"); goPage("account"); return; }
+  document.getElementById('market-post-modal').style.display = 'block';
+  document.getElementById('market-overlay').style.display = 'block';
+  const sel = document.getElementById('post-username-select');
+  sel.innerHTML = '<option value="">Yuklanmoqda...</option>';
+  try {
+    const res = await fetch(`${API}/api/account/usernames?init_data=${encodeURIComponent(tg.initData)}`);
+    const d = await res.json();
+    if (d.usernames && d.usernames.length > 0) {
+      sel.innerHTML = '<option value="">-- Tanlang --</option>' + d.usernames.map(u => `<option value="${u.username}">@${u.username} (${u.title})</option>`).join('');
+    } else {
+      sel.innerHTML = '<option value="">Sizda bo\\'sh usernamelar yo\\'q</option>';
+    }
+  } catch(e) { sel.innerHTML = '<option value="">Xato yuz berdi</option>'; }
+}
+
+function closeMarketPost() {
+  document.getElementById('market-post-modal').style.display = 'none';
+  if (document.getElementById('market-buy-modal').style.display === 'none') {
+    document.getElementById('market-overlay').style.display = 'none';
+  }
+}
+
+async function submitPostListing() {
+  const username = document.getElementById('post-username-select').value;
+  const price = parseInt(document.getElementById('post-price-input').value);
+  if (!username) { showToast('Username tanlang!', 'error'); return; }
+  if (!price || price < 1000) { showToast('Narxni to\\'g\\'ri kiriting (min 1,000)', 'error'); return; }
+  
+  if (!confirm(`Haqiqatdan ham @${username} ni ${price.toLocaleString()} so'mga sotuvga qo'yib, balansingizdan 1,000 so'm e'lon to'lovini yechishga rozimisiz?`)) return;
+  
+  const btn = event.target;
+  btn.disabled = true;
+  btn.innerText = 'Joylanmoqda...';
+  try {
+    const res = await fetch(`${API}/api/marketplace/list`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({init_data: tg.initData, username, price})
+    });
+    const d = await res.json();
+    if(d.ok) {
+      showToast("E'lon qo'shildi!", "success");
+      closeMarketPost();
+      document.getElementById('post-price-input').value = '';
+      loadUserData();
+      loadMyListings();
+    } else {
+      showToast(d.error, "error");
+    }
+  } catch(e) { showToast("Xato yuz berdi", "error"); }
+  btn.disabled = false;
+  btn.innerText = 'Joylash';
 }
 
 async function buyListing(id) {
