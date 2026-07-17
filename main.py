@@ -585,6 +585,23 @@ async def search_sniper(telegram_id: int, search_id: int, category: str, lang: s
         api_blocked = False
         
         import aiohttp
+
+        async def is_on_fragment(sess, uname: str) -> bool:
+            """Fragment.com saytidan username auksionda ekanligini tekshiradi."""
+            try:
+                url = f"https://fragment.com/username/{uname.lower()}"
+                async with sess.get(url, allow_redirects=True, timeout=aiohttp.ClientTimeout(total=6)) as r:
+                    if r.status != 200:
+                        return False
+                    html = await r.text()
+                    # Fragment da bo'lsa 'table-cell-value tm-value' mavjud bo'ladi
+                    # Yoki 'Taken' / 'On auction' kabi belgilar
+                    return ('Taken' in html or 'For sale' in html or 'On auction' in html 
+                            or 'table-cell-value tm-value' in html
+                            or 'status-avail' not in html and 'Available' not in html and 'tgme_page' not in html)
+            except Exception:
+                return False  # tekshirib bo'lmasa, ko'rsatib yuboramiz (xavfsiz tomon)
+        
         async with aiohttp.ClientSession(headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}) as session:
             for username in targets:
                 if found_count >= 200:  # max 200 ta ko'rsatish
@@ -592,7 +609,7 @@ async def search_sniper(telegram_id: int, search_id: int, category: str, lang: s
                     
                 url = f"https://t.me/{username}"
                 try:
-                    async with session.get(url, allow_redirects=True, timeout=5) as resp:
+                    async with session.get(url, allow_redirects=True, timeout=aiohttp.ClientTimeout(total=5)) as resp:
                         # 429 Too Many Requests kelsa, biroz kutamiz
                         if resp.status == 429:
                             logger.warning(f"t.me IP limit (429). Kutamiz...")
@@ -605,19 +622,29 @@ async def search_sniper(telegram_id: int, search_id: int, category: str, lang: s
                         if 'tgme_page_title' not in text:
                             is_free = True
                             
-                            # Fragmentni filtrlash uchun API orqali tekshiramiz (agar akkaunt bloklanmagan bo'lsa)
                             if not api_blocked:
+                                # A Reja: Telegram API orqali tekshirish (eng aniq usul)
                                 try:
                                     is_free = await client(CheckUsernameRequest(username))
-                                    await asyncio.sleep(1) # API chaqiruvidan so'ng pauza
+                                    await asyncio.sleep(0.8)
                                 except UsernamePurchaseAvailableError:
                                     is_free = False
                                     logger.debug(f"Fragment auksionida ekan, o'tkazib yuboramiz: {username}")
                                 except FloodWaitError as e:
-                                    logger.warning(f"API Check FloodWait {e.seconds}s. API filtr o'chirildi.")
+                                    logger.warning(f"API Check FloodWait {e.seconds}s. Fragment.com fallbackga o'tamiz.")
                                     api_blocked = True
+                                    # Bu username ni ham fragment.com orqali tekshiramiz
+                                    if await is_on_fragment(session, username):
+                                        is_free = False
                                 except Exception as e:
                                     logger.debug(f"API Check xato @{username}: {e}")
+                            else:
+                                # B Reja: Fragment.com saytidan HTTP orqali tekshirish
+                                # Hech qanday Telegram akkauntini ishlatmaydi — xavfsiz!
+                                if await is_on_fragment(session, username):
+                                    is_free = False
+                                    logger.debug(f"Fragment.com: {username} auksionda, o'tkazildi")
+                                await asyncio.sleep(0.5)  # fragment.com ga haddan ko'p so'rov yubormaslik uchun
                                     
                             if is_free:
                                 async with aiosqlite.connect(DB_PATH) as db:
@@ -631,7 +658,6 @@ async def search_sniper(telegram_id: int, search_id: int, category: str, lang: s
                 except Exception as e:
                     logger.debug(f"HTTP request xato @{username}: {e}")
                     
-                # Akkaunt orqali qilinmayotgani uchun qo'rqmasdan 0.3 sek tanaffus bilan tez qidirish mumkin
                 await asyncio.sleep(0.3)
                 
         await client.disconnect()
