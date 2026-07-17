@@ -133,6 +133,10 @@
   .form-group input:focus, .form-group textarea:focus {
     border-color: var(--accent);
   }
+  .form-group select option {
+    background: #0a0a0f;
+    color: #fff;
+  }
   .form-group textarea { resize: none; height: 100px; }
 
   /* SECTION TITLE */
@@ -472,8 +476,8 @@
   </div>
   
   <div style="display:flex;gap:10px;margin-bottom:16px;">
-    <button class="btn btn-primary" style="margin:0;flex:1;" onclick="loadMarketplace()">Barcha e'lonlar</button>
-    <button class="btn btn-outline" style="margin:0;flex:1;" onclick="loadMyListings()">Mening e'lonlarim</button>
+    <button class="btn btn-primary" id="btn-market-all" style="margin:0;flex:1;" onclick="loadMarketplace()">Barcha e'lonlar</button>
+    <button class="btn btn-outline" id="btn-market-my" style="margin:0;flex:1;" onclick="loadMyListings()">Mening e'lonlarim</button>
   </div>
 
   <div id="market-list">
@@ -787,6 +791,8 @@ async function listUsername(username) {
 }
 
 async function loadMarketplace() {
+  document.getElementById('btn-market-all').className = 'btn btn-primary';
+  document.getElementById('btn-market-my').className = 'btn btn-outline';
   const listEl = document.getElementById('market-list');
   listEl.innerHTML = '<div style="text-align:center;padding:40px;"><div class="spinner" style="margin:0 auto 12px;"></div>Yuklanmoqda...</div>';
   try {
@@ -814,6 +820,8 @@ async function loadMarketplace() {
 }
 
 async function loadMyListings() {
+  document.getElementById('btn-market-all').className = 'btn btn-outline';
+  document.getElementById('btn-market-my').className = 'btn btn-primary';
   const listEl = document.getElementById('market-list');
   listEl.innerHTML = '<div style="text-align:center;padding:40px;"><div class="spinner" style="margin:0 auto 12px;"></div>Yuklanmoqda...</div>';
   try {
