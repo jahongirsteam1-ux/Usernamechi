@@ -272,20 +272,22 @@ async function loadUsers() {
     const users = await res.json();
     const el = document.getElementById('users-list');
     if (!users.length) { el.innerHTML = '<div class="empty"><div class="e-icon">👥</div><div class="e-text">Foydalanuvchilar yoq</div></div>'; return; }
-    el.innerHTML = users.map(u => `
+    el.innerHTML = users.map(u => {
+      let linkAction = u.username ? `window.Telegram.WebApp.openTelegramLink('https://t.me/${u.username}')` : `window.location.href='tg://user?id=${u.telegram_id}'`;
+      return `
       <div class="user-card" style="align-items:flex-start;">
         <div class="user-avatar">${String(u.telegram_id).slice(-2)}</div>
         <div class="user-info" style="flex:1;">
-          <div class="u-id">👤 <a href="tg://user?id=${u.telegram_id}" style="color:inherit;text-decoration:none;">${u.first_name ? u.first_name : u.telegram_id}</a> ${u.username ? '(@' + u.username + ')' : ''}</div>
+          <div class="u-id">👤 <a href="javascript:void(0)" onclick="${linkAction}" style="color:inherit;text-decoration:none;">${u.first_name ? u.first_name : u.telegram_id}</a> ${u.username ? '(@' + u.username + ')' : ''}</div>
           ${u.phone ? '<div class="u-bal" style="color:var(--text);margin-top:2px;">📱 +' + u.phone + '</div>' : ''}
           <div class="u-bal">💰 ${(u.balance||0).toLocaleString()} som</div>
           <div class="u-status">${u.session_string?'🟢 Akkaunt ulangan':'🔴 Akkaunt yoq'} • ${u.order_count||0} buyurtma</div>
         </div>
         <div style="display:flex; flex-direction:column; gap:6px;">
           <button class="btn btn-edit" style="flex:none;padding:8px 12px;" onclick="openEditBalance(${u.id},${u.telegram_id},${u.balance||0})">✏️</button>
-          <a href="tg://user?id=${u.telegram_id}" class="btn" style="flex:none;padding:8px 12px;background:rgba(124, 58, 237, 0.2);color:#fff;text-decoration:none;display:flex;align-items:center;justify-content:center;">💬</a>
+          <a href="javascript:void(0)" onclick="${linkAction}" class="btn" style="flex:none;padding:8px 12px;background:rgba(124, 58, 237, 0.2);color:#fff;text-decoration:none;display:flex;align-items:center;justify-content:center;">💬</a>
         </div>
-      </div>`).join('');
+      </div>`}).join('');
   } catch(e) {}
 }
 
