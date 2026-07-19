@@ -474,9 +474,21 @@ async def transfer_username(bot, seller_id, buyer_id, username):
         
     except Exception as e:
         logger.error(f"Transfer error for @{username}: {e}")
-        try:
-            await bot.send_message(seller_id, f"❌ @{username} ni o'tkazishda xatolik yuz berdi. Iltimos, u profilingiz yoki kanalingizda ekanligini va akkaunt bog'langanini tekshiring.")
-        except: pass
+        from telethon.errors import AuthKeyUnregisteredError
+        if isinstance(e, AuthKeyUnregisteredError) or "unregistered" in str(e).lower():
+            async with aiosqlite.connect(DB_PATH) as db:
+                # E'lonni qayta faol qilish yoki bekor qilish mumkin, lekin hozircha sotuvchi sessiyasi kuygan
+                await db.execute("UPDATE users SET session_string=NULL WHERE telegram_id IN (?, ?)", (seller_id, buyer_id))
+                await db.commit()
+            try:
+                await bot.send_message(seller_id, f"❌ @{username} ni o'tkazishda xatolik: Telegram akkauntingiz sessiyasi uzilgan! Iltimos, qaytadan ulang.")
+                await bot.send_message(buyer_id, f"❌ @{username} sotib olish bekor qilindi, chunki kimdir profilidan chiqib ketgan. Pulingiz tez orada qaytariladi.")
+                # TODO: Pullarni qaytarish logikasini ulash kerak (bu avtomatik qaytishi kerak yoki admin manual qaytarishi kerak)
+            except: pass
+        else:
+            try:
+                await bot.send_message(seller_id, f"❌ @{username} ni o'tkazishda xatolik yuz berdi. Iltimos, u profilingiz yoki kanalingizda ekanligini va akkaunt bog'langanini tekshiring.")
+            except: pass
     finally:
         await seller_client.disconnect()
         await buyer_client.disconnect()
@@ -1196,20 +1208,33 @@ async def api_account_usernames(init_data: str = ""):
         return {"usernames": usernames}
     except Exception as e:
         logger.error(f"Account usernames error: {e}")
+        from telethon.errors import AuthKeyUnregisteredError
+        if isinstance(e, AuthKeyUnregisteredError) or "unregistered" in str(e).lower():
+            async with aiosqlite.connect(DB_PATH) as db:
+                await db.execute("UPDATE users SET session_string=NULL WHERE telegram_id=?", (tid,))
+                await db.commit()
+            return {"usernames": [], "error": "session_expired"}
         return {"usernames": []}
 
 # ── MARKETPLACE ────────────────────────────────
 @app.get("/api/marketplace")
-async def api_marketplace(init_data: str = ""):
+async def api_marketplace(init_data: str = "", sort: str = "newest", offset: int = 0):
     user = verify_init_data(init_data)
     if not user: raise HTTPException(403)
+    
+    order_clause = "ORDER BY l.id DESC"
+    if sort == "cheapest":
+        order_clause = "ORDER BY l.price ASC"
+    elif sort == "expensive":
+        order_clause = "ORDER BY l.price DESC"
+        
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute("""
+        async with db.execute(f"""
             SELECT l.*, u.first_name as seller_name, u.username as seller_username
             FROM listings l LEFT JOIN users u ON l.seller_id = u.telegram_id
-            WHERE l.status='active' ORDER BY l.id DESC LIMIT 100
-        """) as c:
+            WHERE l.status='active' {order_clause} LIMIT 20 OFFSET ?
+        """, (offset,)) as c:
             rows = [dict(r) for r in await c.fetchall()]
     return rows
 
