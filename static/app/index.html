@@ -555,7 +555,7 @@
   
   <div class="form-group" style="display:flex; align-items:center; gap:8px;">
     <input type="checkbox" id="post-private-checkbox" style="width:auto; height:auto; margin:0;">
-    <label for="post-private-checkbox" style="margin:0; font-size:13px; cursor:pointer;">Yashirin bitim (Garant) - 3% komissiya</label>
+    <label for="post-private-checkbox" style="margin:0; font-size:13px; cursor:pointer;">Garant xizmati - 3% komissiya</label>
   </div>
 
   <button class="btn btn-primary" id="btn-submit-post" onclick="submitPostListing()" style="margin-bottom:8px;">Joylash</button>
@@ -1008,7 +1008,7 @@ async function submitPostListing() {
   if (!price || price < 1000) { showToast('Narxni to\'g\'ri kiriting (min 1,000)', 'error'); return; }
   
   let confirmMsg = `Haqiqatdan ham @${username} ni ${price.toLocaleString()} so'mga sotuvga qo'yib, balansingizdan 1,000 so'm e'lon to'lovini yechishga rozimisiz?`;
-  if (is_private) confirmMsg = `YASHIRIN BITIM: @${username} ni ${price.toLocaleString()} so'mga garant orqali sotishga rozimisiz? Balansingizdan 1,000 so'm e'lon to'lovi yechiladi.`;
+  if (is_private) confirmMsg = `GARANT XIZMATI: @${username} ni ${price.toLocaleString()} so'mga garant orqali sotishga rozimisiz? Balansingizdan 1,000 so'm e'lon to'lovi yechiladi.`;
   
   if (!confirm(confirmMsg)) return;
   

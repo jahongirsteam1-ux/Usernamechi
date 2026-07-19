@@ -599,7 +599,7 @@ async def start_cmd(message: Message):
             [InlineKeyboardButton(text="🛡 Xaridni amalga oshirish", web_app=WebAppInfo(url=f"{WEB_URL}/?escrow={listing_id}"))]
         ])
         await message.answer(
-            "🛡 <b>Garant (Yashirin bitim)</b>\n\n"
+            "🛡 <b>Garant xizmati</b>\n\n"
             "Quyidagi tugma orqali ilovaga kiring va xaridni xavfsiz tarzda amalga oshiring:", 
             reply_markup=markup, parse_mode="HTML"
         )
