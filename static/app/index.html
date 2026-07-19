@@ -725,7 +725,7 @@ async function init() {
   const urlParams = new URLSearchParams(window.location.search);
   const escrowId = urlParams.get('escrow');
   if (escrowId) {
-    showPage('market');
+    goPage('market');
     buyListing(parseInt(escrowId));
   }
 }

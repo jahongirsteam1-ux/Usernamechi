@@ -1204,6 +1204,8 @@ async def api_user(init_data: str = ""):
             "free_searches": row.get("free_searches", 1) if row else 1,
             "session_string": bool(row["session_string"]) if row else False,
             "first_name": row.get("first_name", "") if row else "",
+            "is_premium": row.get("is_premium", 0) if row else 0,
+            "premium_until": row.get("premium_until", "") if row else "",
             "total_orders": total_orders, "total_usernames": total_usernames}
 
 @app.get("/api/account/usernames")
