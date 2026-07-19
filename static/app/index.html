@@ -480,6 +480,10 @@
     <button class="btn btn-outline" id="btn-market-my" style="margin:0;flex:1;" onclick="loadMyListings()">Mening e'lonlarim</button>
   </div>
 
+  <div class="form-group" style="margin-bottom:16px;">
+    <input type="text" id="market-search" placeholder="🔍 Username qidirish..." onkeyup="filterMarket()" style="padding:10px 16px; border-radius:24px;">
+  </div>
+
   <div id="market-list">
     <div style="text-align:center;padding:40px;color:var(--muted);">
       <div class="spinner" style="margin:0 auto 12px;"></div>
@@ -793,6 +797,7 @@ async function listUsername(username) {
 async function loadMarketplace() {
   document.getElementById('btn-market-all').className = 'btn btn-primary';
   document.getElementById('btn-market-my').className = 'btn btn-outline';
+  document.getElementById('market-search').value = ''; // Tozalash
   const listEl = document.getElementById('market-list');
   listEl.innerHTML = '<div style="text-align:center;padding:40px;"><div class="spinner" style="margin:0 auto 12px;"></div>Yuklanmoqda...</div>';
   try {
@@ -822,6 +827,7 @@ async function loadMarketplace() {
 async function loadMyListings() {
   document.getElementById('btn-market-all').className = 'btn btn-outline';
   document.getElementById('btn-market-my').className = 'btn btn-primary';
+  document.getElementById('market-search').value = ''; // Tozalash
   const listEl = document.getElementById('market-list');
   listEl.innerHTML = '<div style="text-align:center;padding:40px;"><div class="spinner" style="margin:0 auto 12px;"></div>Yuklanmoqda...</div>';
   try {
@@ -848,6 +854,15 @@ async function loadMyListings() {
       listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);">Sizda e\'lonlar yo\'q</div>';
     }
   } catch(e) { listEl.innerHTML = 'Xato'; }
+}
+
+function filterMarket() {
+  const query = document.getElementById('market-search').value.toLowerCase();
+  const items = document.querySelectorAll('#market-list .order-item');
+  items.forEach(item => {
+    const text = item.innerText.toLowerCase();
+    item.style.display = text.includes(query) ? 'block' : 'none';
+  });
 }
 
 async function cancelListing(id) {
