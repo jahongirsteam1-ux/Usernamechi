@@ -1078,6 +1078,8 @@ async function loadOrders() {
 
     // Buyurtmalar sahifasi
     const el = document.getElementById('orders-list');
+    if (!el) return;
+    
     if (!orders.length) {
       el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted);">
         <div style="font-size:48px;margin-bottom:12px;">📭</div>Buyurtmalar yo'q</div>`;
