@@ -1078,25 +1078,25 @@ async function loadOrders() {
 
     // Buyurtmalar sahifasi
     const el = document.getElementById('orders-list');
-    if (!el) return;
-    
-    if (!orders.length) {
-      el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted);">
-        <div style="font-size:48px;margin-bottom:12px;">📭</div>Buyurtmalar yo'q</div>`;
-    } else {
-      el.innerHTML = orders.map(o => {
-        const statusMap = {pending:'badge-pending',processing:'badge-processing',completed:'badge-completed'};
-        const statusTxt = {pending:'⏳ Kutilmoqda',processing:'🔄 Qidirilmoqda',completed:'✅ Bajarildi'};
-        const chips = (o.usernames || []).map(u => `<span class="username-chip">@${u}</span>`).join('');
-        return `<div class="order-item">
-          <div class="order-top">
-            <div class="order-cat">📂 ${o.category}</div>
-            <span class="badge ${statusMap[o.status]||'badge-pending'}">${statusTxt[o.status]||o.status}</span>
-          </div>
-          <div class="order-meta">${o.registered_count}/${o.quantity} ta band • ${(o.price||0).toLocaleString()} so'm</div>
-          ${chips ? `<div class="usernames-list">${chips}</div>` : ''}
-        </div>`;
-      }).join('');
+    if (el) {
+      if (!orders.length) {
+        el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted);">
+          <div style="font-size:48px;margin-bottom:12px;">📭</div>Buyurtmalar yo'q</div>`;
+      } else {
+        el.innerHTML = orders.map(o => {
+          const statusMap = {pending:'badge-pending',processing:'badge-processing',completed:'badge-completed'};
+          const statusTxt = {pending:'⏳ Kutilmoqda',processing:'🔄 Qidirilmoqda',completed:'✅ Bajarildi'};
+          const chips = (o.usernames || []).map(u => `<span class="username-chip">@${u}</span>`).join('');
+          return `<div class="order-item">
+            <div class="order-top">
+              <div class="order-cat">📂 ${o.category}</div>
+              <span class="badge ${statusMap[o.status]||'badge-pending'}">${statusTxt[o.status]||o.status}</span>
+            </div>
+            <div class="order-meta">${o.registered_count}/${o.quantity} ta band • ${(o.price||0).toLocaleString()} so'm</div>
+            ${chips ? `<div class="usernames-list">${chips}</div>` : ''}
+          </div>`;
+        }).join('');
+      }
     }
 
     // Asosiy sahifadagi jadval
