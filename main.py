@@ -417,7 +417,7 @@ def generate_usernames(base_word: str, lang: str = 'uz', limit: int = 2000) -> l
 # ─── ASOSIY MENYU ─────────────────────────────
 def main_menu():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📱 Dasturni ochish", web_app=WebAppInfo(url=f"{WEB_URL}/app"))]
+        [InlineKeyboardButton(text="📱 Dasturni ochish", web_app=WebAppInfo(url=f"{WEB_URL}/app?v=2"))]
     ])
 
 # ─── ROUTER VA HANDLERLAR ─────────────────────
@@ -605,7 +605,7 @@ async def start_cmd(message: Message):
     if len(args) > 1 and args[1].startswith("escrow_"):
         listing_id = args[1].split("_")[1]
         markup = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🛡 Xaridni amalga oshirish", web_app=WebAppInfo(url=f"{WEB_URL}/?escrow={listing_id}"))]
+            [InlineKeyboardButton(text="🛡 Xaridni amalga oshirish", web_app=WebAppInfo(url=f"{WEB_URL}/app?v=2&escrow={listing_id}"))]
         ])
         await message.answer(
             "🛡 <b>Garant xizmati</b>\n\n"
@@ -1186,15 +1186,19 @@ def get_admin_token(telegram_id: int) -> str:
     return hashlib.sha256(secret.encode()).hexdigest()[:32]
 
 # ── Mini App Pages ─────────────────────────────
-@app.get("/app", response_class=HTMLResponse)
+@app.get("/app")
 async def mini_app():
-    with open("static/app/index.html") as f:
-        return f.read()
+    with open("static/app/index.html", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read(), headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"
+        })
 
-@app.get("/admin", response_class=HTMLResponse)
+@app.get("/admin")
 async def admin_panel():
-    with open("static/admin/index.html") as f:
-        return f.read()
+    with open("static/admin/index.html", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read(), headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"
+        })
 
 # ── Mini App API ───────────────────────────────
 @app.get("/api/user")
