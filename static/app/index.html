@@ -897,7 +897,7 @@ async function loadMarketplace(reset = true) {
     }
     
     if (reset) {
-      listEl.innerHTML = html || '<div style="text-align:center;padding:40px;color:var(--muted);">Sotuvda usernamelar yo\\'q</div>';
+      listEl.innerHTML = html || `<div style="text-align:center;padding:40px;color:var(--muted);">Sotuvda usernamelar yo'q</div>`;
     } else {
       listEl.innerHTML += html;
     }
