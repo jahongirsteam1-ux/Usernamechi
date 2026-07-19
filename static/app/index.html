@@ -307,34 +307,7 @@
       <input type="hidden" id="buy-lang" value="uz">
     </div>
 
-    <script>
-      function setCategory(cat) {
-        document.getElementById('buy-category').value = cat;
-        document.getElementById('custom-word-container').style.display = (cat === 'custom') ? 'block' : 'none';
-        
-        document.getElementById('btn-cat-short').className = 'btn btn-outline';
-        document.getElementById('btn-cat-smart').className = 'btn btn-outline';
-        document.getElementById('btn-cat-custom').className = 'btn btn-outline';
-        
-        if(cat === 'qisqa') {
-            document.getElementById('btn-cat-short').className = 'btn btn-primary';
-        } else if (cat === 'turli') {
-            document.getElementById('btn-cat-smart').className = 'btn btn-primary';
-        } else if (cat === 'custom') {
-            document.getElementById('btn-cat-custom').className = 'btn btn-primary';
-        }
-      }
-      function setLang(lang) {
-        document.getElementById('buy-lang').value = lang;
-        if(lang === 'uz') {
-            document.getElementById('btn-lang-uz').className = 'btn btn-primary';
-            document.getElementById('btn-lang-en').className = 'btn btn-outline';
-        } else {
-            document.getElementById('btn-lang-uz').className = 'btn btn-outline';
-            document.getElementById('btn-lang-en').className = 'btn btn-primary';
-        }
-      }
-    </script>
+    <!-- setCategory and setLang moved to main script block -->
 
     <div class="form-group">
       <label>NECHTA OLMOQCHISIZ? (1–10)</label>
@@ -711,6 +684,32 @@ tg.setBackgroundColor('#0a0a0f');
 const API = '';  // same origin
 let userData = {};
 let photoFile = null;
+
+// ── CATEGORY & LANG (moved from inline) ──────
+function setCategory(cat) {
+  document.getElementById('buy-category').value = cat;
+  document.getElementById('custom-word-container').style.display = (cat === 'custom') ? 'block' : 'none';
+  document.getElementById('btn-cat-short').className = 'btn btn-outline';
+  document.getElementById('btn-cat-smart').className = 'btn btn-outline';
+  document.getElementById('btn-cat-custom').className = 'btn btn-outline';
+  if(cat === 'qisqa') {
+    document.getElementById('btn-cat-short').className = 'btn btn-primary';
+  } else if (cat === 'turli') {
+    document.getElementById('btn-cat-smart').className = 'btn btn-primary';
+  } else if (cat === 'custom') {
+    document.getElementById('btn-cat-custom').className = 'btn btn-primary';
+  }
+}
+function setLang(lang) {
+  document.getElementById('buy-lang').value = lang;
+  if(lang === 'uz') {
+    document.getElementById('btn-lang-uz').className = 'btn btn-primary';
+    document.getElementById('btn-lang-en').className = 'btn btn-outline';
+  } else {
+    document.getElementById('btn-lang-uz').className = 'btn btn-outline';
+    document.getElementById('btn-lang-en').className = 'btn btn-primary';
+  }
+}
 
 // ── INIT ──────────────────────────────────────
 async function init() {
@@ -1129,10 +1128,11 @@ async function loadOrders() {
 function goPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-  document.getElementById('page-'+name).classList.add('active');
+  const pageEl = document.getElementById('page-'+name);
+  if (!pageEl) { name = 'home'; document.getElementById('page-home').classList.add('active'); }
+  else { pageEl.classList.add('active'); }
   const navBtn = document.getElementById('nav-'+name);
   if (navBtn) navBtn.classList.add('active');
-  if(name==='orders') loadOrders();
   if(name==='monitor') loadMonitors();
   if(name==='market') loadMarketplace();
   if(name==='my-listings') loadMyListings();
@@ -1494,7 +1494,7 @@ async function buySelected() {
       await loadUserData();
       // Yana natijalarni yangilaymiz (statusi claimed bo'lishi uchun)
       pollSearchResults();
-      goPage('orders');
+      goPage('home');
     } else {
       showToast(d.error||'Xato','error');
       btn.disabled = false;
