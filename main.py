@@ -905,98 +905,99 @@ async def claim_sniper(bot, telegram_id: int, order_id: int, usernames: list):
         failed_reasons = []
         deferred = []  # FloodWait tufayli keyinga qoldirilganlar
         
-        for username in usernames:
-            try:
-                ch = None
+        try:
+            for username in usernames:
                 try:
-                    ch = await client(CreateChannelRequest(title=username.capitalize(), about="@usernamechi_bot orqali band qilingan", megagroup=False))
-                    ch_id = ch.chats[0].id
-                    await client(UpdateUsernameRequest(channel=ch_id, username=username))
-                    
-                    claimed.append(username)
-                    async with aiosqlite.connect(DB_PATH) as db:
-                        await db.execute("INSERT INTO registered_usernames (order_id, username) VALUES (?,?)", (order_id, username))
-                        await db.execute("UPDATE orders SET registered_count=registered_count+1 WHERE id=?", (order_id,))
-                        await db.commit()
-                except Exception as inner_e:
-                    err_msg = str(inner_e)
-                    err_type = type(inner_e).__name__
-                    logger.error(f"Claim failed for {username}: {err_type} - {err_msg}")
-                    
-                    if "UserRestricted" in err_type:
-                        human_reason = "Akkauntingiz Telegram tomonidan cheklangan (SpamBlock)"
-                    elif "ChannelsAdminPublicTooMuch" in err_type:
-                        human_reason = "Sizda maksimal 10 ta ommaviy kanal bor (Limit)"
-                    elif "UsernameInvalid" in err_type:
-                        human_reason = "Bu nom Telegram qoidalariga zid yoki auksionda"
-                    elif "UsernameOccupied" in err_type:
-                        human_reason = "Ushbu nom kimgadir tegishli bo'lib ulgurgan"
-                    elif "UsernamePurchaseAvailable" in err_type:
-                        human_reason = "Bu nom Fragment auksionida pulga sotilmoqda"
-                    else:
-                        human_reason = f"Telegram ruxsat bermadi ({err_type})"
+                    ch = None
+                    try:
+                        ch = await client(CreateChannelRequest(title=username.capitalize(), about="@usernamechi_bot orqali band qilingan", megagroup=False))
+                        ch_id = ch.chats[0].id
+                        await client(UpdateUsernameRequest(channel=ch_id, username=username))
                         
-                    failed_reasons.append(f"@{username} — <b>{human_reason}</b>")
+                        claimed.append(username)
+                        async with aiosqlite.connect(DB_PATH) as db:
+                            await db.execute("INSERT INTO registered_usernames (order_id, username) VALUES (?,?)", (order_id, username))
+                            await db.execute("UPDATE orders SET registered_count=registered_count+1 WHERE id=?", (order_id,))
+                            await db.commit()
+                    except Exception as inner_e:
+                        err_msg = str(inner_e)
+                        err_type = type(inner_e).__name__
+                        logger.error(f"Claim failed for {username}: {err_type} - {err_msg}")
+                        
+                        if "UserRestricted" in err_type:
+                            human_reason = "Akkauntingiz Telegram tomonidan cheklangan (SpamBlock)"
+                        elif "ChannelsAdminPublicTooMuch" in err_type:
+                            human_reason = "Sizda maksimal 10 ta ommaviy kanal bor (Limit)"
+                        elif "UsernameInvalid" in err_type:
+                            human_reason = "Bu nom Telegram qoidalariga zid yoki auksionda"
+                        elif "UsernameOccupied" in err_type:
+                            human_reason = "Ushbu nom kimgadir tegishli bo'lib ulgurgan"
+                        elif "UsernamePurchaseAvailable" in err_type:
+                            human_reason = "Bu nom Fragment auksionida pulga sotilmoqda"
+                        else:
+                            human_reason = f"Telegram ruxsat bermadi ({err_type})"
+                            
+                        failed_reasons.append(f"@{username} — <b>{human_reason}</b>")
+                        
+                        if ch:
+                            try:
+                                await client(DeleteChannelRequest(channel=ch.chats[0].id))
+                            except:
+                                pass
+                        if "ChannelsAdminPublicTooMuch" in err_type:
+                            await bot.send_message(telegram_id, "❌ <b>Diqqat:</b> Ommaviy link yaratish limiti tugagan! Telegram ruxsat bermadi.", parse_mode="HTML")
+                            break
+                    await asyncio.sleep(1)
+                except FloodWaitError as e:
+                    logger.warning(f"FloodWait during claim: {e.seconds}s for {username}")
+                    # Bu va keyingi barcha usernamelarni keyinga qoldirish
+                    deferred.append(username)
+                    # Qolgan username larni ham deferred ga qo'shish
+                    remaining_idx = usernames.index(username) + 1
+                    deferred.extend(usernames[remaining_idx:])
                     
-                    if ch:
-                        try:
-                            await client(DeleteChannelRequest(channel=ch.chats[0].id))
-                        except:
-                            pass
-                    if "ChannelsAdminPublicTooMuch" in err_type:
-                        await bot.send_message(telegram_id, "❌ <b>Diqqat:</b> Ommaviy link yaratish limiti tugagan! Telegram ruxsat bermadi.", parse_mode="HTML")
-                        break
-                await asyncio.sleep(1)
-            except FloodWaitError as e:
-                logger.warning(f"FloodWait during claim: {e.seconds}s for {username}")
-                # Bu va keyingi barcha usernamelarni keyinga qoldirish
-                deferred.append(username)
-                # Qolgan username larni ham deferred ga qo'shish
-                remaining_idx = usernames.index(username) + 1
-                deferred.extend(usernames[remaining_idx:])
-                
-                # FloodWait tugash vaqtini saqlash
-                import time
-                floodwait_until = time.time() + e.seconds
-                import json as _json
-                async with aiosqlite.connect(DB_PATH) as db:
-                    await db.execute(
-                        "UPDATE orders SET floodwait_until=?, pending_usernames=?, status='floodwait' WHERE id=?",
-                        (floodwait_until, _json.dumps(deferred), order_id)
+                    # FloodWait tugash vaqtini saqlash
+                    import time
+                    floodwait_until = time.time() + e.seconds
+                    import json as _json
+                    async with aiosqlite.connect(DB_PATH) as db:
+                        await db.execute(
+                            "UPDATE orders SET floodwait_until=?, pending_usernames=?, status='floodwait' WHERE id=?",
+                            (floodwait_until, _json.dumps(deferred), order_id)
+                        )
+                        await db.commit()
+                    
+                    # Foydalanuvchiga xabar berish
+                    secs = e.seconds
+                    if secs >= 3600:
+                        time_str = f"{secs // 3600} soat {(secs % 3600) // 60} daqiqa"
+                    elif secs >= 60:
+                        time_str = f"{secs // 60} daqiqa"
+                    else:
+                        time_str = f"{secs} soniya"
+                    
+                    # Foydalanuvchi ismini va tanlangan usernamelarni olish
+                    async with aiosqlite.connect(DB_PATH) as db:
+                        async with db.execute("SELECT user_first_name FROM orders WHERE id=?", (order_id,)) as c:
+                            order_row = await c.fetchone()
+                        user_first_name = (order_row[0] or "Foydalanuvchi") if order_row else "Foydalanuvchi"
+                    
+                    usernames_list = "\n".join(f"\u2022 @{u}" for u in deferred)
+                    
+                    await bot.send_message(
+                        telegram_id,
+                        f"\u23f3 <b>Hurmatli {user_first_name}!</b>\n\n"
+                        f"Telegram cheklovi <b>{time_str}</b> dan keyin ochiladi.\n\n"
+                        f"<b>Tanlagan usernamengiz:</b>\n{usernames_list}\n\n"
+                        f"\U0001f916 Cheklov ochilishi bilan yuqoridagi usernamelar avtomatik <b>band qilinadi</b> va sizga xabar yuboriladi.\n\n"
+                        f"<i>Hech narsani qilishingiz shart emas \u2014 bot o'zi kuzatib boradi.</i>",
+                        parse_mode="HTML"
                     )
-                    await db.commit()
-                
-                # Foydalanuvchiga xabar berish
-                secs = e.seconds
-                if secs >= 3600:
-                    time_str = f"{secs // 3600} soat {(secs % 3600) // 60} daqiqa"
-                elif secs >= 60:
-                    time_str = f"{secs // 60} daqiqa"
-                else:
-                    time_str = f"{secs} soniya"
-                
-                # Foydalanuvchi ismini va tanlangan usernamelarni olish
-                async with aiosqlite.connect(DB_PATH) as db:
-                    async with db.execute("SELECT user_first_name FROM orders WHERE id=?", (order_id,)) as c:
-                        order_row = await c.fetchone()
-                    user_first_name = (order_row[0] or "Foydalanuvchi") if order_row else "Foydalanuvchi"
-                
-                usernames_list = "\n".join(f"\u2022 @{u}" for u in deferred)
-                
-                await bot.send_message(
-                    telegram_id,
-                    f"\u23f3 <b>Hurmatli {user_first_name}!</b>\n\n"
-                    f"Telegram cheklovi <b>{time_str}</b> dan keyin ochiladi.\n\n"
-                    f"<b>Tanlagan usernamengiz:</b>\n{usernames_list}\n\n"
-                    f"\U0001f916 Cheklov ochilishi bilan yuqoridagi usernamelar avtomatik <b>band qilinadi</b> va sizga xabar yuboriladi.\n\n"
-                    f"<i>Hech narsani qilishingiz shart emas \u2014 bot o'zi kuzatib boradi.</i>",
-                    parse_mode="HTML"
-                )
-                break
-            except Exception as e:
-                logger.error(f"Claim xato: {e}")
-                
-        await client.disconnect()
+                    break
+                except Exception as e:
+                    logger.error(f"Claim xato: {e}")
+        finally:
+            await client.disconnect()
         
         # Agar deferred bo'lmasa - buyurtmani yakunlash
         if not deferred:
@@ -1100,41 +1101,43 @@ async def monitoring_loop(bot):
                 try:
                     client = TelegramClient(StringSession(task["session_string"]), API_ID, API_HASH)
                     await client.connect()
-                    
-                    is_free = await client(CheckUsernameRequest(username=task["username"]))
-                    if is_free:
-                        ch = None
-                        try:
-                            ch = await client(CreateChannelRequest(title=task["username"].capitalize(), about="@usernamechi_bot orqali band qilingan", megagroup=False))
-                            ch_id = ch.chats[0].id
-                            await client(UpdateUsernameRequest(channel=ch_id, username=task["username"]))
-                            
-                            async with aiosqlite.connect(DB_PATH) as db:
-                                await db.execute("UPDATE monitoring_tasks SET status='claimed' WHERE id=?", (task["id"],))
-                                await db.commit()
-                                
+                    try:
+                        is_free = await client(CheckUsernameRequest(username=task["username"]))
+                        if is_free:
+                            ch = None
                             try:
-                                await bot.send_message(
-                                    task["telegram_id"],
-                                    f"🎯 <b>Nishon olindi!</b>\n\nKutgan usernamengiz bo'shadi va Siz uchun band qilindi: <b>@{task['username']}</b>",
-                                    parse_mode="HTML"
-                                )
-                            except: pass
-                        except Exception as inner_e:
-                            if ch:
-                                try: await client(DeleteChannelRequest(channel=ch.chats[0].id))
-                                except: pass
-                            if "ChannelsAdminPublicTooMuchError" in str(type(inner_e)):
+                                ch = await client(CreateChannelRequest(title=task["username"].capitalize(), about="@usernamechi_bot orqali band qilingan", megagroup=False))
+                                ch_id = ch.chats[0].id
+                                await client(UpdateUsernameRequest(channel=ch_id, username=task["username"]))
+                                
                                 async with aiosqlite.connect(DB_PATH) as db:
-                                    await db.execute("UPDATE monitoring_tasks SET status='failed_limit' WHERE id=?", (task["id"],))
+                                    await db.execute("UPDATE monitoring_tasks SET status='claimed' WHERE id=?", (task["id"],))
                                     await db.commit()
+                                    
                                 try:
-                                    await bot.send_message(task["telegram_id"], f"❌ @{task['username']} bo'shadi, lekin ommaviy link limiti tugagani uchun ololmadim.")
+                                    await bot.send_message(
+                                        task["telegram_id"],
+                                        f"🎯 <b>Nishon olindi!</b>\n\nKutgan usernamengiz bo'shadi va Siz uchun band qilindi: <b>@{task['username']}</b>",
+                                        parse_mode="HTML"
+                                    )
                                 except: pass
-                    
-                    await client.disconnect()
-                except FloodWaitError as e:
-                    await asyncio.sleep(e.seconds)
+                            except Exception as inner_e:
+                                if ch:
+                                    try: await client(DeleteChannelRequest(channel=ch.chats[0].id))
+                                    except: pass
+                                if "ChannelsAdminPublicTooMuchError" in str(type(inner_e)):
+                                    async with aiosqlite.connect(DB_PATH) as db:
+                                        await db.execute("UPDATE monitoring_tasks SET status='failed_limit' WHERE id=?", (task["id"],))
+                                        await db.commit()
+                                    try:
+                                        await bot.send_message(task["telegram_id"], f"❌ @{task['username']} bo'shadi, lekin ommaviy link limiti tugagani uchun ololmadim.")
+                                    except: pass
+                    except FloodWaitError as e:
+                        await asyncio.sleep(e.seconds)
+                    except Exception:
+                        pass
+                    finally:
+                        await client.disconnect()
                 except Exception:
                     pass
                 await asyncio.sleep(2)
