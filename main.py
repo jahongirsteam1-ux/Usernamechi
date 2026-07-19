@@ -44,7 +44,12 @@ ADMIN_IDS     = [int(x) for x in os.getenv("ADMIN_IDS", "0").split(",") if x.str
 DB_PATH       = os.getenv("DB_PATH", "saas.db")
 WEB_URL       = os.getenv("WEB_HOST", "https://your-app.railway.app")
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
+import sys
+logging.basicConfig(
+    level=logging.INFO, 
+    format="%(asctime)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
 logger = logging.getLogger(__name__)
 
 # ─── MA'LUMOTLAR BAZASI ───────────────────────
