@@ -71,6 +71,18 @@ async def init_db():
         except Exception: pass
         try: await db.execute("ALTER TABLE users ADD COLUMN seller_balance INTEGER DEFAULT 0")
         except Exception: pass
+        try: await db.execute("ALTER TABLE users ADD COLUMN is_premium INTEGER DEFAULT 0")
+        except Exception: pass
+        try: await db.execute("ALTER TABLE users ADD COLUMN premium_until TEXT")
+        except Exception: pass
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS keyword_subscriptions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                keyword TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         await db.execute("""
             CREATE TABLE IF NOT EXISTS orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -154,9 +166,12 @@ async def init_db():
                 username TEXT,
                 price INTEGER,
                 status TEXT DEFAULT 'active',
-                created_at REAL DEFAULT (strftime('%s','now'))
+                created_at REAL DEFAULT (strftime('%s','now')),
+                is_private INTEGER DEFAULT 0
             )
         """)
+        try: await db.execute("ALTER TABLE listings ADD COLUMN is_private INTEGER DEFAULT 0")
+        except Exception: pass
         await db.execute("""
             CREATE TABLE IF NOT EXISTS listing_orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -540,7 +555,7 @@ async def auto_payment_handler(message: Message):
                     return # Stop after processing a topup
 
             # Check marketplace listing orders
-            async with db.execute("SELECT lo.id, lo.listing_id, lo.buyer_id, lo.expected_amount, l.seller_id, l.username, l.price FROM listing_orders lo JOIN listings l ON lo.listing_id = l.id WHERE lo.status='pending'") as c:
+            async with db.execute("SELECT lo.id, lo.listing_id, lo.buyer_id, lo.expected_amount, l.seller_id, l.username, l.price, l.is_private, u.is_premium FROM listing_orders lo JOIN listings l ON lo.listing_id = l.id JOIN users u ON l.seller_id = u.telegram_id WHERE lo.status='pending'") as c:
                 pending_listings = await c.fetchall()
 
             for lo in pending_listings:
@@ -549,8 +564,15 @@ async def auto_payment_handler(message: Message):
                     await db.execute("UPDATE listing_orders SET status='completed' WHERE id=?", (lo['id'],))
                     await db.execute("UPDATE listings SET status='sold' WHERE id=?", (lo['listing_id'],))
                     
-                    # 10% komissiya
-                    seller_earnings = int(lo['price'] * 0.9)
+                    # Komissiya hisoblash
+                    if lo['is_private'] == 1:
+                        fee_percent = 0.03
+                    elif lo['is_premium'] == 1:
+                        fee_percent = 0.05
+                    else:
+                        fee_percent = 0.10
+                        
+                    seller_earnings = int(lo['price'] * (1 - fee_percent))
                     await db.execute("UPDATE users SET seller_balance=seller_balance+? WHERE telegram_id=?", (seller_earnings, lo['seller_id']))
                     await db.commit()
 
@@ -569,6 +591,19 @@ async def auto_payment_handler(message: Message):
 @router.message(CommandStart())
 async def start_cmd(message: Message):
     await create_user(message.from_user.id)
+    
+    args = message.text.split(" ", 1)
+    if len(args) > 1 and args[1].startswith("escrow_"):
+        listing_id = args[1].split("_")[1]
+        markup = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🛡 Xaridni amalga oshirish", web_app=WebAppInfo(url=f"{WEB_URL}/?escrow={listing_id}"))]
+        ])
+        await message.answer(
+            "🛡 <b>Garant (Yashirin bitim)</b>\n\n"
+            "Quyidagi tugma orqali ilovaga kiring va xaridni xavfsiz tarzda amalga oshiring:", 
+            reply_markup=markup, parse_mode="HTML"
+        )
+        return
 
     from aiogram.types import FSInputFile
     banner = FSInputFile("static/welcome_banner.png")
@@ -1222,18 +1257,18 @@ async def api_marketplace(init_data: str = "", sort: str = "newest", offset: int
     user = verify_init_data(init_data)
     if not user: raise HTTPException(403)
     
-    order_clause = "ORDER BY l.id DESC"
+    order_clause = "ORDER BY u.is_premium DESC, l.id DESC"
     if sort == "cheapest":
-        order_clause = "ORDER BY l.price ASC"
+        order_clause = "ORDER BY u.is_premium DESC, l.price ASC"
     elif sort == "expensive":
-        order_clause = "ORDER BY l.price DESC"
+        order_clause = "ORDER BY u.is_premium DESC, l.price DESC"
         
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(f"""
-            SELECT l.*, u.first_name as seller_name, u.username as seller_username
+            SELECT l.*, u.first_name as seller_name, u.username as seller_username, u.is_premium
             FROM listings l LEFT JOIN users u ON l.seller_id = u.telegram_id
-            WHERE l.status='active' {order_clause} LIMIT 20 OFFSET ?
+            WHERE l.status='active' AND l.is_private=0 {order_clause} LIMIT 20 OFFSET ?
         """, (offset,)) as c:
             rows = [dict(r) for r in await c.fetchall()]
     return rows
@@ -1258,6 +1293,8 @@ async def api_marketplace_list(request: Request):
     price = int(data.get('price', 0))
     LISTING_FEE = 1000
     
+    is_private = 1 if data.get('is_private') else 0
+    
     if not username or price < 1000:
         return {"ok": False, "error": "Username va narx to'g'ri kiriting (min 1,000 so'm)"}
     
@@ -1275,8 +1312,26 @@ async def api_marketplace_list(request: Request):
     
     await deduct_balance(tid, LISTING_FEE)
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("INSERT INTO listings (seller_id, username, price) VALUES (?,?,?)", (tid, username, price))
+        await db.execute("INSERT INTO listings (seller_id, username, price, is_private) VALUES (?,?,?,?)", (tid, username, price, is_private))
         await db.commit()
+        
+        if is_private == 0:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("SELECT DISTINCT user_id FROM keyword_subscriptions WHERE ? LIKE '%' || keyword || '%'", (username,)) as c:
+                subs = await c.fetchall()
+            
+            if subs:
+                bot_instance = Bot(token=BOT_TOKEN)
+                for sub in subs:
+                    try:
+                        await bot_instance.send_message(
+                            sub['user_id'], 
+                            f"🔔 <b>Xushxabar!</b>\n\nSiz poylagan so'zga mos <b>@{username}</b> bozorda sotuvga chiqdi!\nNarxi: <b>{price:,} so'm</b>",
+                            parse_mode="HTML"
+                        )
+                    except: pass
+                await bot_instance.session.close() if not bot_instance.session.closed else None
+                
     return {"ok": True}
 
 @app.post("/api/marketplace/cancel")
@@ -1294,6 +1349,21 @@ async def api_marketplace_cancel(request: Request):
         await db.execute("UPDATE listings SET status='cancelled' WHERE id=?", (listing_id,))
         await db.commit()
     return {"ok": True}
+
+@app.get("/api/marketplace/{listing_id}")
+async def api_marketplace_get(listing_id: int, init_data: str = ""):
+    user = verify_init_data(init_data)
+    if not user: raise HTTPException(403)
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("""
+            SELECT l.*, u.first_name as seller_name, u.username as seller_username
+            FROM listings l LEFT JOIN users u ON l.seller_id = u.telegram_id
+            WHERE l.id=? AND l.status='active'
+        """, (listing_id,)) as c:
+            row = await c.fetchone()
+            if row: return dict(row)
+            raise HTTPException(404)
 
 @app.post("/api/marketplace/buy")
 async def api_marketplace_buy(request: Request):
@@ -1385,6 +1455,63 @@ async def api_seller_withdraw(request: Request):
     
     await bot_instance.session.close() if not bot_instance.session.closed else None
     return {"ok": True, "message": "So'rovingiz qabul qilindi. Admin 24 soat ichida to'lov amalga oshiradi va sizga xabar beriladi."}
+
+# ── PREMIUM & SUBSCRIPTIONS ────────────────────
+@app.post("/api/premium/buy")
+async def api_premium_buy(request: Request):
+    data = await request.json()
+    user = verify_init_data(data.get('init_data',''))
+    if not user: raise HTTPException(403)
+    tid = user['id']
+    
+    PREMIUM_PRICE = 20000
+    row = await get_user(tid)
+    if not row: return {"ok": False, "error": "Foydalanuvchi topilmadi"}
+    
+    if (row.get('balance') or 0) < PREMIUM_PRICE:
+        return {"ok": False, "error": f"Premium uchun {PREMIUM_PRICE:,} so'm kerak. Balansingiz yetarli emas."}
+    
+    await deduct_balance(tid, PREMIUM_PRICE)
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE users SET is_premium=1, premium_until=datetime('now', '+30 days') WHERE telegram_id=?", (tid,))
+        await db.commit()
+    return {"ok": True}
+
+@app.get("/api/subscriptions")
+async def api_subscriptions_get(init_data: str = ""):
+    user = verify_init_data(init_data)
+    if not user: raise HTTPException(403)
+    tid = user['id']
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT id, keyword FROM keyword_subscriptions WHERE user_id=?", (tid,)) as c:
+            return [dict(r) for r in await c.fetchall()]
+
+@app.post("/api/subscriptions/add")
+async def api_subscriptions_add(request: Request):
+    data = await request.json()
+    user = verify_init_data(data.get('init_data',''))
+    if not user: raise HTTPException(403)
+    tid = user['id']
+    keyword = data.get('keyword','').strip().lower()
+    if len(keyword) < 3: return {"ok": False, "error": "Kamida 3 ta harf kiriting"}
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("INSERT INTO keyword_subscriptions (user_id, keyword) VALUES (?, ?)", (tid, keyword))
+        await db.commit()
+    return {"ok": True}
+
+@app.post("/api/subscriptions/remove")
+async def api_subscriptions_remove(request: Request):
+    data = await request.json()
+    user = verify_init_data(data.get('init_data',''))
+    if not user: raise HTTPException(403)
+    tid = user['id']
+    sub_id = data.get('id')
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM keyword_subscriptions WHERE id=? AND user_id=?", (sub_id, tid))
+        await db.commit()
+    return {"ok": True}
 
 # ── ADMIN WITHDRAWALS ──────────────────────────
 @app.get("/api/admin/withdrawals")

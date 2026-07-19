@@ -552,8 +552,13 @@
     <label>NARXI (so'm)</label>
     <input type="number" id="post-price-input" placeholder="Masalan: 50000">
   </div>
+  
+  <div class="form-group" style="display:flex; align-items:center; gap:8px;">
+    <input type="checkbox" id="post-private-checkbox" style="width:auto; height:auto; margin:0;">
+    <label for="post-private-checkbox" style="margin:0; font-size:13px; cursor:pointer;">Yashirin bitim (Garant) - 3% komissiya</label>
+  </div>
 
-  <button class="btn btn-primary" onclick="submitPostListing()" style="margin-bottom:8px;">Joylash</button>
+  <button class="btn btn-primary" id="btn-submit-post" onclick="submitPostListing()" style="margin-bottom:8px;">Joylash</button>
   <button class="btn btn-outline" onclick="closeMarketPost()">Bekor qilish</button>
 </div>
 
@@ -562,6 +567,24 @@
 <!-- ACCOUNT PAGE -->
 <div class="page" id="page-account">
   <div class="page-header">🔗 <span>Akkaunt</span></div>
+
+  <!-- PREMIUM SECTION -->
+  <div class="card" id="premium-wrap" style="background:linear-gradient(135deg,rgba(245,158,11,0.1),rgba(217,119,6,0.05)); border-color:rgba(245,158,11,0.3);">
+    <div style="font-weight:700; font-size:16px; margin-bottom:8px; color:#fbbf24;">👑 Premium Akkaunt</div>
+    <div style="font-size:13px; color:var(--muted); margin-bottom:12px;">Sotuv komissiyasini 5% gacha kamaytiring va e'lonlaringizni ajratib ko'rsating. (Narxi: 20,000 so'm / 30 kun)</div>
+    <button class="btn btn-primary" id="btn-buy-premium" onclick="buyPremium()" style="background:linear-gradient(135deg, #f59e0b, #d97706); margin:0;">Sotib olish</button>
+  </div>
+
+  <!-- POYLASH SECTION -->
+  <div class="card" id="subscriptions-wrap" style="display:none;">
+    <div style="font-weight:700; font-size:16px; margin-bottom:8px;">🔔 Poylash (Obunalar)</div>
+    <div style="font-size:13px; color:var(--muted); margin-bottom:12px;">Kerakli so'zlarni kiriting. Mos username chiqsa, bot xabar beradi.</div>
+    <div style="display:flex; gap:8px; margin-bottom:12px;">
+      <input type="text" id="sub-keyword-input" placeholder="Masalan: biznes" style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--border); background:rgba(255,255,255,0.05); color:#fff; font-size:14px; outline:none;">
+      <button class="btn btn-primary" onclick="addSubKeyword()" style="width:auto; margin:0; padding:10px 16px;">Qo'shish</button>
+    </div>
+    <div id="sub-keyword-list" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+  </div>
 
   <!-- Sotuvchi Balansi & Pul yechish -->
   <div class="card" id="seller-balance-wrap" style="display:none; background:linear-gradient(135deg,rgba(16,185,129,0.15),rgba(6,182,212,0.1)); border-color:rgba(16,185,129,0.3);">
@@ -698,6 +721,13 @@ async function init() {
   await loadUserData();
   await loadOrders();
   loadCardNumber();
+  
+  const urlParams = new URLSearchParams(window.location.search);
+  const escrowId = urlParams.get('escrow');
+  if (escrowId) {
+    showPage('market');
+    buyListing(parseInt(escrowId));
+  }
 }
 
 async function loadUserData() {
@@ -713,7 +743,16 @@ async function loadUserData() {
 
     if (userData.session_string) {
       document.getElementById('status-dot').className = 'status-dot connected';
-      document.getElementById('account-name').textContent = '✅ Akkaunt ulangan';
+      
+      let nameText = '✅ Akkaunt ulangan';
+      if (userData.is_premium) {
+        nameText = '👑 Premium Akkaunt';
+        const pwrap = document.getElementById('premium-wrap');
+        pwrap.innerHTML = `<div style="font-weight:700; font-size:16px; margin-bottom:8px; color:#fbbf24;">👑 Premium Akkaunt</div>
+                           <div style="font-size:13px; color:var(--muted);">Sizda premium yoqilgan. Tugash vaqti: ${userData.premium_until}</div>`;
+      }
+      
+      document.getElementById('account-name').textContent = nameText;
       document.getElementById('account-sub').textContent = 'Username band qilishga tayyor';
       document.getElementById('session-form-wrap').style.display = 'none';
       document.getElementById('disconnect-wrap').style.display = 'block';
@@ -722,11 +761,15 @@ async function loadUserData() {
       document.getElementById('seller-balance-wrap').style.display = 'block';
       document.getElementById('seller-balance-amount').textContent = (userData.seller_balance || 0).toLocaleString() + ' so\'m';
       
+      document.getElementById('subscriptions-wrap').style.display = 'block';
+      
       loadMyUsernames();
+      loadSubscriptions();
     } else {
       document.getElementById('no-session-warn').style.display = 'block';
       document.getElementById('seller-balance-wrap').style.display = 'none';
       document.getElementById('my-usernames-wrap').style.display = 'none';
+      document.getElementById('subscriptions-wrap').style.display = 'none';
     }
   } catch(e) { console.error(e); }
 }
@@ -839,10 +882,10 @@ async function loadMarketplace(reset = true) {
     let html = '';
     if (d.length > 0) {
       html = d.map(l => `
-        <div class="order-item">
+        <div class="order-item" ${l.is_premium ? 'style="border-color:rgba(245,158,11,0.5); background:linear-gradient(135deg, rgba(245,158,11,0.05), transparent);"' : ''}>
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <div style="font-weight:800; font-size:18px; color:var(--accent);">@${l.username}</div>
+              <div style="font-weight:800; font-size:18px; color:var(--accent);">@${l.username} ${l.is_premium ? '<span style="font-size:14px;" title="Premium e\'lon">👑</span>' : ''}</div>
               <div style="font-size:12px; color:var(--muted); margin-top:4px;">Sotuvchi: ${l.seller_name || l.seller_username || 'Foydalanuvchi'}</div>
             </div>
             <div style="text-align:right;">
@@ -899,6 +942,7 @@ async function loadMyListings() {
             <div style="text-align:right;">
               <div style="font-weight:700; font-size:14px; color:${l.status=='active'?'var(--success)':'var(--muted)'}">${statTxt[l.status]||l.status}</div>
               ${l.status == 'active' ? `<button class="btn btn-danger" style="padding:4px 8px; font-size:11px; margin:4px 0 0; width:auto;" onclick="cancelListing(${l.id})">O'chirish</button>` : ''}
+              ${l.is_private && l.status == 'active' ? `<div style="margin-top:8px;"><button class="btn btn-outline" style="padding:4px 8px; font-size:11px; width:auto; border-color:var(--accent); color:var(--accent);" onclick="copyEscrowLink(${l.id}, '${l.username}')">🔗 Garant havolasi</button></div>` : ''}
             </div>
           </div>
         </div>
@@ -958,18 +1002,23 @@ function closeMarketPost() {
 async function submitPostListing() {
   const username = document.getElementById('post-username-select').value;
   const price = parseInt(document.getElementById('post-price-input').value);
+  const is_private = document.getElementById('post-private-checkbox').checked ? 1 : 0;
+  
   if (!username) { showToast('Username tanlang!', 'error'); return; }
   if (!price || price < 1000) { showToast('Narxni to\'g\'ri kiriting (min 1,000)', 'error'); return; }
   
-  if (!confirm(`Haqiqatdan ham @${username} ni ${price.toLocaleString()} so'mga sotuvga qo'yib, balansingizdan 1,000 so'm e'lon to'lovini yechishga rozimisiz?`)) return;
+  let confirmMsg = `Haqiqatdan ham @${username} ni ${price.toLocaleString()} so'mga sotuvga qo'yib, balansingizdan 1,000 so'm e'lon to'lovini yechishga rozimisiz?`;
+  if (is_private) confirmMsg = `YASHIRIN BITIM: @${username} ni ${price.toLocaleString()} so'mga garant orqali sotishga rozimisiz? Balansingizdan 1,000 so'm e'lon to'lovi yechiladi.`;
   
-  const btn = event.target;
+  if (!confirm(confirmMsg)) return;
+  
+  const btn = document.getElementById('btn-submit-post');
   btn.disabled = true;
   btn.innerText = 'Joylanmoqda...';
   try {
     const res = await fetch(`${API}/api/marketplace/list`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({init_data: tg.initData, username, price})
+      body: JSON.stringify({init_data: tg.initData, username, price, is_private})
     });
     const d = await res.json();
     if(d.ok) {
@@ -1603,6 +1652,76 @@ function showToast(msg, type='success') {
   t.textContent = msg;
   t.className = `toast show ${type}`;
   setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── PREMIUM & SUBSCRIPTIONS ───────────────────
+async function buyPremium() {
+  if(!confirm('20,000 so\'m evaziga 30 kunga Premium sotib olasizmi?')) return;
+  const btn = document.getElementById('btn-buy-premium');
+  btn.disabled = true; btn.innerText = 'Kuting...';
+  try {
+    const res = await fetch(`${API}/api/premium/buy`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({init_data: tg.initData})
+    });
+    const d = await res.json();
+    if(d.ok) {
+      showToast('Premium faollashtirildi!', 'success');
+      loadUserData();
+    } else {
+      showToast(d.error, 'error');
+    }
+  } catch(e) { showToast('Xato', 'error'); }
+  btn.disabled = false; btn.innerText = 'Sotib olish';
+}
+
+async function loadSubscriptions() {
+  try {
+    const res = await fetch(`${API}/api/subscriptions?init_data=${encodeURIComponent(tg.initData)}`);
+    const d = await res.json();
+    const listEl = document.getElementById('sub-keyword-list');
+    listEl.innerHTML = d.map(s => `
+      <div style="background:var(--accent); color:#fff; padding:6px 12px; border-radius:16px; font-size:12px; display:flex; align-items:center; gap:6px;">
+        ${s.keyword}
+        <span style="cursor:pointer; font-weight:bold; background:rgba(0,0,0,0.2); border-radius:50%; width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center;" onclick="removeSubKeyword(${s.id})">×</span>
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+async function addSubKeyword() {
+  const kw = document.getElementById('sub-keyword-input').value.trim();
+  if(kw.length < 3) { showToast('Kamida 3 ta harf', 'error'); return; }
+  try {
+    const res = await fetch(`${API}/api/subscriptions/add`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({init_data: tg.initData, keyword: kw})
+    });
+    const d = await res.json();
+    if(d.ok) {
+      document.getElementById('sub-keyword-input').value = '';
+      loadSubscriptions();
+    } else { showToast(d.error, 'error'); }
+  } catch(e) { showToast('Xato', 'error'); }
+}
+
+async function removeSubKeyword(id) {
+  try {
+    await fetch(`${API}/api/subscriptions/remove`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({init_data: tg.initData, id: id})
+    });
+    loadSubscriptions();
+  } catch(e) {}
+}
+
+function copyEscrowLink(id, username) {
+  const link = `https://t.me/usernamechi_bot?start=escrow_${id}`;
+  navigator.clipboard.writeText(link).then(() => {
+    showToast('Havola nusxalandi!', 'success');
+  }).catch(() => {
+    showToast('Nusxalashda xatolik', 'error');
+  });
 }
 
 init();
