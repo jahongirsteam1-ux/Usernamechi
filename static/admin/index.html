@@ -166,7 +166,10 @@
   <div class="card">
     <div class="set-group"><label>💳 Karta raqami</label><input type="text" id="set-card" placeholder="8600 0000 0000 0000"></div>
     <div class="set-group"><label>📢 Tolov kanali ID</label><input type="text" id="set-channel" placeholder="-100123456789"></div>
-    <div class="set-group"><label>💰 Username narxi (som)</label><input type="number" id="set-price" placeholder="5000"></div>
+    <div class="set-group"><label>💰 Username izlash narxi (som)</label><input type="number" id="set-price" placeholder="5000"></div>
+    <div class="set-group"><label>👑 Premium narxi (som / 30 kun)</label><input type="number" id="set-premium-price" placeholder="20000"></div>
+    <div class="set-group"><label>🎯 Nishon olish narxi (som)</label><input type="number" id="set-monitor-price" placeholder="10000"></div>
+    <div class="set-group"><label>📢 E'lon berish komissiyasi (som)</label><input type="number" id="set-listing-price" placeholder="1000"></div>
     <button class="btn-primary" onclick="saveSettings()">💾 Saqlash</button>
   </div>
 </div>
@@ -383,11 +386,25 @@ async function loadAdminOrders() {
 }
 
 async function loadSettings() {
-  try { const res = await fetch('/api/admin/settings', {headers: h()}); const d = await res.json(); document.getElementById('set-card').value = d.payment_card||''; document.getElementById('set-channel').value = d.payment_channel_id||''; document.getElementById('set-price').value = d.username_price||'5000'; } catch(e) {}
+  try { const res = await fetch('/api/admin/settings', {headers: h()}); const d = await res.json(); 
+  document.getElementById('set-card').value = d.payment_card||''; 
+  document.getElementById('set-channel').value = d.payment_channel_id||''; 
+  document.getElementById('set-price').value = d.username_price||'5000'; 
+  document.getElementById('set-premium-price').value = d.premium_price||'20000'; 
+  document.getElementById('set-monitor-price').value = d.monitor_price||'10000'; 
+  document.getElementById('set-listing-price').value = d.listing_price||'1000'; 
+  } catch(e) {}
 }
 
 async function saveSettings() {
-  const data = {payment_card:document.getElementById('set-card').value, payment_channel_id:document.getElementById('set-channel').value, username_price:document.getElementById('set-price').value};
+  const data = {
+    payment_card: document.getElementById('set-card').value, 
+    payment_channel_id: document.getElementById('set-channel').value, 
+    username_price: document.getElementById('set-price').value,
+    premium_price: document.getElementById('set-premium-price').value,
+    monitor_price: document.getElementById('set-monitor-price').value,
+    listing_price: document.getElementById('set-listing-price').value
+  };
   try { await fetch('/api/admin/settings', {method:'POST',headers:{...h(),'Content-Type':'application/json'},body:JSON.stringify(data)}); showToast('✅ Sozlamalar saqlandi'); } catch(e) { showToast('Xato yuz berdi','error'); }
 }
 

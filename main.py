@@ -207,6 +207,9 @@ async def init_db():
         await db.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('payment_card', '8600123456789012')")
         await db.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('payment_channel_id', '0')")
         await db.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('username_price', '5000')")
+        await db.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('premium_price', '20000')")
+        await db.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('monitor_price', '10000')")
+        await db.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('listing_price', '1000')")
         await db.commit()
 
         # Migration: mavjud jadvallarni yangi ustunlar bilan yangilash
@@ -686,10 +689,11 @@ async def text_handler(message: Message):
 
     if state.get("step") == "wait_category":
         user_states[user_id] = {"step": "wait_quantity", "category": message.text.strip()}
+        price = int(await get_setting("username_price", 5000))
         await message.answer(
             f"✅ Kategoriya: <b>{message.text.strip()}</b>\n\n"
             f"Nechta username kerak? (1—10 ta)\n"
-            f"💡 Narxi: <b>{USERNAME_PRICE:,} so'm/dona</b>",
+            f"💡 Narxi: <b>{price:,} so'm/dona</b>",
             parse_mode="HTML"
         )
 
@@ -702,7 +706,8 @@ async def text_handler(message: Message):
             await message.answer("❌ 1 dan 10 gacha son kiriting!")
             return
 
-        total   = qty * USERNAME_PRICE
+        price_per = int(await get_setting("username_price", 5000))
+        total   = qty * price_per
         cat     = state["category"]
         user    = await get_user(user_id)
         balance = user["balance"] if user else 0
@@ -765,10 +770,20 @@ async def set_profile_username(call: CallbackQuery):
     finally:
         await client.disconnect()
 
+@router.callback_query(F.data.startswith("order_"))
+async def place_order(call: CallbackQuery):
+    data = call.data.split('_')
+    if len(data) < 4: return
+    cat = data[1]
+    qty = int(data[2])
+    total = int(data[3])
+    user_id = call.from_user.id
+    
+    await deduct_balance(user_id, total)
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
-            "INSERT INTO orders (telegram_id, category, quantity, price, status) VALUES (?,?,?,?,'processing')",
-            (user_id, cat, qty, total)
+            "INSERT INTO orders (telegram_id, category, quantity, price, status, user_first_name) VALUES (?,?,?,?,'processing',?)",
+            (user_id, cat, qty, total, call.from_user.first_name)
         )
         order_id = cur.lastrowid
         await db.commit()
@@ -787,6 +802,29 @@ async def set_profile_username(call: CallbackQuery):
     asyncio.create_task(run_sniper(call.bot, user_id, order_id, cat, qty))
 
 # ─── SNIPER ───────────────────────────────────
+async def run_sniper(bot, telegram_id, order_id, category, qty):
+    """Fon rejimida qidirish va band qilish."""
+    await search_sniper(telegram_id, order_id, category)
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT username FROM search_results WHERE search_id=?", (order_id,)) as c:
+            found = [r[0] for r in await c.fetchall()]
+    
+    if found:
+        # Eng yaxshi 'qty' ta nomni tanlash
+        to_claim = found[:qty]
+        await claim_sniper(bot, telegram_id, order_id, to_claim)
+    else:
+        # Hech narsa topilmadi
+        async with aiosqlite.connect(DB_PATH) as db:
+            cur = await db.execute("SELECT price FROM orders WHERE id=?", (order_id,))
+            order_row = await cur.fetchone()
+            if order_row:
+                await db.execute("UPDATE users SET balance=balance+? WHERE telegram_id=?", (order_row[0], telegram_id))
+            await db.execute("UPDATE orders SET status='failed' WHERE id=?", (order_id,))
+            await db.commit()
+        await bot.send_message(telegram_id, "❌ Afsuski, siz so'ragan kategoriyada bo'sh username topilmadi. Pulingiz qaytarildi.")
+
 async def search_sniper(telegram_id: int, search_id: int, category: str, lang: str = 'uz'):
     """Fon rejimida faqat usernamesni tekshiradi va bazaga yozadi."""
     try:
@@ -1215,6 +1253,10 @@ async def api_user(init_data: str = ""):
             total_orders = (await c.fetchone())[0]
         async with db.execute("SELECT COUNT(*) FROM registered_usernames ru JOIN orders o ON ru.order_id=o.id WHERE o.telegram_id=?", (tid,)) as c:
             total_usernames = (await c.fetchone())[0]
+    premium_price = int(await get_setting("premium_price", 20000))
+    monitor_price = int(await get_setting("monitor_price", 10000))
+    listing_price = int(await get_setting("listing_price", 1000))
+    
     return {"balance": row["balance"] if row else 0, 
             "seller_balance": row.get("seller_balance", 0) if row else 0,
             "free_searches": row.get("free_searches", 1) if row else 1,
@@ -1222,7 +1264,10 @@ async def api_user(init_data: str = ""):
             "first_name": row.get("first_name", "") if row else "",
             "is_premium": row.get("is_premium", 0) if row else 0,
             "premium_until": row.get("premium_until", "") if row else "",
-            "total_orders": total_orders, "total_usernames": total_usernames}
+            "total_orders": total_orders, "total_usernames": total_usernames,
+            "premium_price": premium_price,
+            "monitor_price": monitor_price,
+            "listing_price": listing_price}
 
 @app.get("/api/account/usernames")
 async def api_account_usernames(init_data: str = ""):
@@ -1307,9 +1352,9 @@ async def api_marketplace_list(request: Request):
     user = verify_init_data(data.get('init_data',''))
     if not user: raise HTTPException(403)
     tid = user['id']
-    username = data.get('username','').strip().lstrip('@')
+    username = data.get('username','').strip().replace('@','')
     price = int(data.get('price', 0))
-    LISTING_FEE = 1000
+    LISTING_FEE = int(await get_setting("listing_price", 1000))
     
     is_private = 1 if data.get('is_private') else 0
     
@@ -1482,7 +1527,7 @@ async def api_premium_buy(request: Request):
     if not user: raise HTTPException(403)
     tid = user['id']
     
-    PREMIUM_PRICE = 20000
+    PREMIUM_PRICE = int(await get_setting("premium_price", 20000))
     row = await get_user(tid)
     if not row: return {"ok": False, "error": "Foydalanuvchi topilmadi"}
     
@@ -1666,7 +1711,7 @@ async def api_monitor_start(request: Request):
     if not row or not row['session_string']:
         return {"ok": False, "error": "Akkaunt ulanmagan"}
         
-    price = 10000 # Kafolat puli (monitor qilish uchun)
+    price = int(await get_setting("monitor_price", 10000)) # Kafolat puli (monitor qilish uchun)
     if (row['balance'] or 0) < price:
         return {"ok": False, "error": f"Balans yetarli emas (Kerak: {price:,} so'm)"}
         
@@ -1922,7 +1967,17 @@ async def api_admin_settings_get(x_admin_token: str = Header(default="")):
     card = await get_setting("payment_card", "")
     channel = await get_setting("payment_channel_id", "")
     price = await get_setting("username_price", "5000")
-    return {"payment_card": card, "payment_channel_id": channel, "username_price": price}
+    premium_price = await get_setting("premium_price", "20000")
+    monitor_price = await get_setting("monitor_price", "10000")
+    listing_price = await get_setting("listing_price", "1000")
+    return {
+        "payment_card": card, 
+        "payment_channel_id": channel, 
+        "username_price": price,
+        "premium_price": premium_price,
+        "monitor_price": monitor_price,
+        "listing_price": listing_price
+    }
 
 @app.post("/api/admin/settings")
 async def api_admin_settings_set(request: Request, x_admin_token: str = Header(default="")):
@@ -1937,6 +1992,12 @@ async def api_admin_settings_set(request: Request, x_admin_token: str = Header(d
         await set_setting("payment_channel_id", data['payment_channel_id'])
     if 'username_price' in data:
         await set_setting("username_price", data['username_price'])
+    if 'premium_price' in data:
+        await set_setting("premium_price", data['premium_price'])
+    if 'monitor_price' in data:
+        await set_setting("monitor_price", data['monitor_price'])
+    if 'listing_price' in data:
+        await set_setting("listing_price", data['listing_price'])
     return {"ok": True}
 
 # ── Admin API ──────────────────────────────────

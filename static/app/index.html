@@ -368,7 +368,7 @@
   <div class="card">
     <div style="font-size:13px; color:var(--muted); margin-bottom:16px;">
       Band qilingan usernameni kuzatib turamiz va u bo'shagan soniyasida siz uchun ilib olamiz! 
-      <br><i>(Buning uchun balansingizda kamida <b>10,000 so'm</b> bo'lishi kerak. Bu xizmat haqi hisoblanadi)</i>
+      <br><i>(Buning uchun balansingizda kamida <b id="lbl-monitor-price">10,000</b><b> so'm</b> bo'lishi kerak. Bu xizmat haqi hisoblanadi)</i>
     </div>
 
     <div class="form-group">
@@ -379,6 +379,17 @@
     <button class="btn btn-primary" onclick="startMonitor()">
       🎯 Kuzatuvni boshlash
     </button>
+  </div>
+
+  <!-- POYLASH SECTION MOVED HERE -->
+  <div class="card" id="subscriptions-wrap" style="display:none; margin-top:20px;">
+    <div style="font-weight:700; font-size:16px; margin-bottom:8px;">🔔 Poylash (Obunalar)</div>
+    <div style="font-size:13px; color:var(--muted); margin-bottom:12px;">Kerakli so'zlarni kiriting. Mos username chiqsa, bot xabar beradi.</div>
+    <div style="display:flex; gap:8px; margin-bottom:12px;">
+      <input type="text" id="sub-keyword-input" placeholder="Masalan: biznes" style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--border); background:rgba(255,255,255,0.05); color:#fff; font-size:14px; outline:none;">
+      <button class="btn btn-primary" onclick="addSubKeyword()" style="width:auto; margin:0; padding:10px 16px;">Qo'shish</button>
+    </div>
+    <div id="sub-keyword-list" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
   </div>
 
   <div class="card" style="padding:0;overflow:hidden; margin-top:20px;">
@@ -511,7 +522,7 @@
   <div class="section-title">E'lon joylash</div>
   
   <div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:12px;padding:12px;margin-bottom:16px;color:#34d399;font-size:13px;font-weight:600;">
-    E'lon berish narxi: 1,000 so'm (balansingizdan yechiladi). Sotilganda 10% komissiya olinadi.
+    E'lon berish narxi: <span id="lbl-listing-price">1,000</span> so'm (balansingizdan yechiladi). Sotilganda 10% komissiya olinadi.
   </div>
 
   <div class="form-group">
@@ -544,19 +555,8 @@
   <!-- PREMIUM SECTION -->
   <div class="card" id="premium-wrap" style="background:linear-gradient(135deg,rgba(245,158,11,0.1),rgba(217,119,6,0.05)); border-color:rgba(245,158,11,0.3);">
     <div style="font-weight:700; font-size:16px; margin-bottom:8px; color:#fbbf24;">👑 Premium Akkaunt</div>
-    <div style="font-size:13px; color:var(--muted); margin-bottom:12px;">Sotuv komissiyasini 5% gacha kamaytiring va e'lonlaringizni ajratib ko'rsating. (Narxi: 20,000 so'm / 30 kun)</div>
+    <div style="font-size:13px; color:var(--muted); margin-bottom:12px;">Sotuv komissiyasini 5% gacha kamaytiring va e'lonlaringizni ajratib ko'rsating. (Narxi: <span id="lbl-premium-price">20,000</span> so'm / 30 kun)</div>
     <button class="btn btn-primary" id="btn-buy-premium" onclick="buyPremium()" style="background:linear-gradient(135deg, #f59e0b, #d97706); margin:0;">Sotib olish</button>
-  </div>
-
-  <!-- POYLASH SECTION -->
-  <div class="card" id="subscriptions-wrap" style="display:none;">
-    <div style="font-weight:700; font-size:16px; margin-bottom:8px;">🔔 Poylash (Obunalar)</div>
-    <div style="font-size:13px; color:var(--muted); margin-bottom:12px;">Kerakli so'zlarni kiriting. Mos username chiqsa, bot xabar beradi.</div>
-    <div style="display:flex; gap:8px; margin-bottom:12px;">
-      <input type="text" id="sub-keyword-input" placeholder="Masalan: biznes" style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--border); background:rgba(255,255,255,0.05); color:#fff; font-size:14px; outline:none;">
-      <button class="btn btn-primary" onclick="addSubKeyword()" style="width:auto; margin:0; padding:10px 16px;">Qo'shish</button>
-    </div>
-    <div id="sub-keyword-list" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
   </div>
 
   <!-- Sotuvchi Balansi & Pul yechish -->
@@ -735,6 +735,19 @@ async function loadUserData() {
     if (!res.ok) return;
     userData = await res.json();
     const bal = userData.balance || 0;
+    
+    // Global prices for confirms
+    window.APP_PRICES = { 
+      premium: userData.premium_price || 20000, 
+      monitor: userData.monitor_price || 10000, 
+      listing: userData.listing_price || 1000 
+    };
+    
+    // Update UI Labels
+    if(document.getElementById('lbl-premium-price')) document.getElementById('lbl-premium-price').textContent = window.APP_PRICES.premium.toLocaleString();
+    if(document.getElementById('lbl-monitor-price')) document.getElementById('lbl-monitor-price').textContent = window.APP_PRICES.monitor.toLocaleString();
+    if(document.getElementById('lbl-listing-price')) document.getElementById('lbl-listing-price').textContent = window.APP_PRICES.listing.toLocaleString();
+
     document.getElementById('home-balance').textContent = bal.toLocaleString();
     document.getElementById('bal-amount').textContent = bal.toLocaleString();
     document.getElementById('stat-orders').textContent = userData.total_orders || 0;
@@ -826,12 +839,13 @@ async function submitWithdraw() {
 }
 
 async function listUsername(username) {
-  const priceStr = prompt(`@${username} ni qanchaga sotmoqchisiz?\n(E'lon berish narxi 1,000 so'm, sotilganda 10% komissiya olinadi)`, "50000");
+  const listingPriceStr = window.APP_PRICES ? window.APP_PRICES.listing.toLocaleString() : '1,000';
+  const priceStr = prompt(`@${username} ni qanchaga sotmoqchisiz?\n(E'lon berish narxi ${listingPriceStr} so'm, sotilganda 10% komissiya olinadi)`, "50000");
   if (!priceStr) return;
   const price = parseInt(priceStr);
   if (isNaN(price) || price < 1000) { alert("Xato narx kiritildi!"); return; }
   
-  if (!confirm(`Haqiqatdan ham @${username} ni ${price.toLocaleString()} so'mga sotuvga qo'yib, balansingizdan 1,000 so'm e'lon to'lovini yechishga rozimisiz?`)) return;
+  if (!confirm(`Haqiqatdan ham @${username} ni ${price.toLocaleString()} so'mga sotuvga qo'yib, balansingizdan ${listingPriceStr} so'm e'lon to'lovini yechishga rozimisiz?`)) return;
   
   try {
     const res = await fetch(`${API}/api/marketplace/list`, {
@@ -1006,8 +1020,9 @@ async function submitPostListing() {
   if (!username) { showToast('Username tanlang!', 'error'); return; }
   if (!price || price < 1000) { showToast('Narxni to\'g\'ri kiriting (min 1,000)', 'error'); return; }
   
-  let confirmMsg = `Haqiqatdan ham @${username} ni ${price.toLocaleString()} so'mga sotuvga qo'yib, balansingizdan 1,000 so'm e'lon to'lovini yechishga rozimisiz?`;
-  if (is_private) confirmMsg = `GARANT XIZMATI: @${username} ni ${price.toLocaleString()} so'mga garant orqali sotishga rozimisiz? Balansingizdan 1,000 so'm e'lon to'lovi yechiladi.`;
+  let listingPriceStr = window.APP_PRICES ? window.APP_PRICES.listing.toLocaleString() : '1,000';
+  let confirmMsg = `Haqiqatdan ham @${username} ni ${price.toLocaleString()} so'mga sotuvga qo'yib, balansingizdan ${listingPriceStr} so'm e'lon to'lovini yechishga rozimisiz?`;
+  if (is_private) confirmMsg = `GARANT XIZMATI: @${username} ni ${price.toLocaleString()} so'mga garant orqali sotishga rozimisiz? Balansingizdan ${listingPriceStr} so'm e'lon to'lovi yechiladi.`;
   
   if (!confirm(confirmMsg)) return;
   
@@ -1145,8 +1160,9 @@ async function startMonitor() {
   if (!username) { showToast('Username kiriting!','error'); return; }
   if (!userData.session_string) { showToast('Avval akkauntni ulang!','error'); goPage('account'); return; }
   
-  if ((userData.balance||0) < 10000) {
-    showToast('Balans yetarli emas (10,000 UZS)','error');
+  const monitorPrice = window.APP_PRICES ? window.APP_PRICES.monitor : 10000;
+  if ((userData.balance||0) < monitorPrice) {
+    showToast(`Balans yetarli emas (${monitorPrice.toLocaleString()} UZS)`,'error');
     return;
   }
   
@@ -1658,7 +1674,8 @@ function showToast(msg, type='success') {
 
 // ── PREMIUM & SUBSCRIPTIONS ───────────────────
 async function buyPremium() {
-  if(!confirm('20,000 so\'m evaziga 30 kunga Premium sotib olasizmi?')) return;
+  const premiumPriceStr = window.APP_PRICES ? window.APP_PRICES.premium.toLocaleString() : '20,000';
+  if(!confirm(`${premiumPriceStr} so'm evaziga 30 kunga Premium sotib olasizmi?`)) return;
   const btn = document.getElementById('btn-buy-premium');
   btn.disabled = true; btn.innerText = 'Kuting...';
   try {
