@@ -1001,7 +1001,11 @@ async function openPostModal() {
     const res = await fetch(`${API}/api/account/usernames?init_data=${encodeURIComponent(tg.initData)}`);
     const d = await res.json();
     if (d.usernames && d.usernames.length > 0) {
-      sel.innerHTML = '<option value="">-- Tanlang --</option>' + d.usernames.map(u => `<option value="${u.username}">@${u.username} (${u.title})</option>`).join('');
+      sel.innerHTML = '<option value="">-- Tanlang --</option>' + d.usernames.map(u => 
+        u.is_listed 
+          ? `<option value="${u.username}" disabled>@${u.username} (Sotuvga qo'yilgan)</option>`
+          : `<option value="${u.username}">@${u.username} (${u.title})</option>`
+      ).join('');
     } else {
       sel.innerHTML = '<option value="">Sizda bo\'sh usernamelar yo\'q</option>';
     }
