@@ -1302,6 +1302,12 @@ async def api_account_usernames(init_data: str = ""):
                 if getattr(ch, 'creator', False) or getattr(ch, 'admin_rights', None):
                     usernames.append({"username": uname, "title": title or "Kanal/Guruh"})
                     
+        # Check if they are already listed
+        async with aiosqlite.connect(DB_PATH) as db:
+            for u in usernames:
+                async with db.execute("SELECT id FROM listings WHERE LOWER(username)=LOWER(?) AND status='active'", (u['username'],)) as c:
+                    u['is_listed'] = bool(await c.fetchone())
+                    
         await client.disconnect()
         return {"usernames": usernames}
     except Exception as e:
