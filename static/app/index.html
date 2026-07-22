@@ -788,16 +788,31 @@
   </div>
 
   <!-- REFERRAL SYSTEM CARD -->
-  <div class="card" style="background:linear-gradient(135deg,rgba(139,92,246,0.18),rgba(6,182,212,0.12)); border-color:rgba(167,139,250,0.35);">
-    <div style="font-weight:700; font-size:16px; margin-bottom:6px; color:#c084fc;">🎁 Referral (Do'stlarni taklif qilish)</div>
-    <div style="font-size:13px; color:var(--muted); margin-bottom:12px;">Do'stlaringizni taklif qiling va ular balans to'ldirganda <b>5% keshbek bonus</b> oling!</div>
-    
-    <div style="font-size:13px; color:var(--text); margin-bottom:8px; font-weight:600;">Taklif qilgan do'stlaringiz: <b id="ref-count-val" style="color:var(--success);">0 ta</b></div>
-    
-    <div style="display:flex; gap:8px;">
-      <input type="text" id="ref-link-input" readonly value="Yuklanmoqda..." style="flex:1; padding:10px; font-size:12px; border-radius:10px; background:rgba(0,0,0,0.2);">
-      <button class="btn btn-primary" onclick="copyRefLink()" style="width:auto; margin:0; padding:10px 14px; font-size:12px; border-radius:10px;">📋 Nusxalash</button>
+  <div class="card" style="background:linear-gradient(135deg, rgba(139,92,246,0.22) 0%, rgba(6,182,212,0.14) 100%); border:1px solid rgba(167,139,250,0.4); box-shadow:0 12px 32px rgba(139,92,246,0.18);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <div class="section-title" style="margin:0;"><span class="icon-3d">🎁</span> <span>Taklif & Bonus</span></div>
+      <div style="background:rgba(16,185,129,0.2); border:1px solid rgba(16,185,129,0.4); color:#34d399; font-size:11px; font-weight:800; padding:4px 10px; border-radius:12px;">
+        ⚡ 5% KESHBEK
+      </div>
     </div>
+    
+    <div style="font-size:13px; color:rgba(255,255,255,0.7); margin-bottom:14px; line-height:1.5;">
+      Do'stlaringizni taklif qiling. Ular balans to'ldirganda summaning <b>5% bonusi</b> hisobingizga avtomatik tushadi!
+    </div>
+
+    <div style="background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:12px 14px; display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <span style="font-size:12px; color:var(--muted); font-weight:600;">Taklif qilingan do'stlar:</span>
+      <span style="font-size:16px; font-weight:800; color:#38bdf8;" id="ref-count-val">0 ta</span>
+    </div>
+
+    <div style="margin-bottom:10px;">
+      <div style="font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">SHAXSIY TAKLIF HAVOLANGIZ</div>
+      <input type="text" id="ref-link-input" readonly value="Yuklanmoqda..." style="width:100%; padding:12px 14px; font-size:13px; font-weight:600; border-radius:12px; background:rgba(15,23,42,0.8); border:1px solid rgba(56,189,248,0.3); color:#38bdf8; outline:none; text-overflow:ellipsis; margin-bottom:10px;">
+    </div>
+
+    <button class="btn btn-primary" onclick="copyRefLink()" style="margin:0; width:100%; background:linear-gradient(135deg,#8b5cf6,#06b6d4); font-size:13px; padding:12px;">
+      📋 Havoladan nusxalash
+    </button>
   </div>
 
   <!-- Mening usernamelarim -->
