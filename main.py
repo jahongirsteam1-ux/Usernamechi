@@ -1335,7 +1335,8 @@ async def api_marketplace(init_data: str = "", sort: str = "newest", offset: int
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(f"""
-            SELECT l.*, u.first_name as seller_name, u.username as seller_username, u.is_premium
+            SELECT l.*, u.first_name as seller_name, u.username as seller_username, 
+                   (CASE WHEN u.is_premium = 1 AND (u.premium_until IS NULL OR u.premium_until > datetime('now')) THEN 1 ELSE 0 END) as is_premium
             FROM listings l LEFT JOIN users u ON l.seller_id = u.telegram_id
             WHERE l.status='active' AND l.is_private=0 {order_clause} LIMIT 20 OFFSET ?
         """, (offset,)) as c:

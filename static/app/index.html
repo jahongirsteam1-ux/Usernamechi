@@ -898,15 +898,20 @@ async function loadMarketplace(reset = true) {
     let html = '';
     if (d.length > 0) {
       html = d.map(l => `
-        <div class="order-item" ${l.is_premium ? 'style="border-color:rgba(245,158,11,0.5); background:linear-gradient(135deg, rgba(245,158,11,0.05), transparent);"' : ''}>
+        <div class="order-item" style="${l.is_premium 
+          ? 'border:1px solid #f59e0b; box-shadow:0 4px 18px rgba(245,158,11,0.25); background:linear-gradient(135deg, rgba(245,158,11,0.14), rgba(15,23,42,0.6)); position:relative; overflow:hidden;' 
+          : ''}">
+          ${l.is_premium ? `<div style="font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#fbbf24; background:rgba(245,158,11,0.25); border:1px solid rgba(245,158,11,0.4); padding:2px 8px; border-radius:10px; display:inline-flex; align-items:center; gap:4px; margin-bottom:8px;">👑 PREMIUM E'LON</div>` : ''}
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <div style="font-weight:800; font-size:18px; color:var(--accent);">@${l.username} ${l.is_premium ? '<span style="font-size:14px;" title="Premium e\'lon">👑</span>' : ''}</div>
-              <div style="font-size:12px; color:var(--muted); margin-top:4px;">Sotuvchi: ${l.seller_name || l.seller_username || 'Foydalanuvchi'}</div>
+              <div style="font-weight:800; font-size:18px; color:${l.is_premium ? '#fbbf24' : 'var(--accent)'};">@${l.username}</div>
+              <div style="font-size:12px; color:var(--muted); margin-top:4px;">
+                Sotuvchi: ${l.seller_name || l.seller_username || 'Foydalanuvchi'} ${l.is_premium ? '<span style="color:#fbbf24; font-weight:700; font-size:11px; margin-left:2px;">(👑 Premium)</span>' : ''}
+              </div>
             </div>
             <div style="text-align:right;">
-              <div style="font-weight:700; font-size:16px;">${l.price.toLocaleString()} so'm</div>
-              <button class="btn btn-primary" style="padding:6px 12px; width:auto; font-size:12px; margin:8px 0 0 0;" onclick="buyListing(${l.id})">Sotib olish</button>
+              <div style="font-weight:700; font-size:16px; ${l.is_premium ? 'color:#fbbf24;' : ''}">${l.price.toLocaleString()} so'm</div>
+              <button class="btn ${l.is_premium ? 'btn-primary' : 'btn-primary'}" style="padding:6px 12px; width:auto; font-size:12px; margin:8px 0 0 0; ${l.is_premium ? 'background:linear-gradient(135deg, #f59e0b, #d97706); border:none; box-shadow:0 2px 8px rgba(245,158,11,0.3);' : ''}" onclick="buyListing(${l.id})">Sotib olish</button>
             </div>
           </div>
         </div>
