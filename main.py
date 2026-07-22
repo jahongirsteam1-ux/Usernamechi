@@ -59,6 +59,9 @@ async def init_db():
         os.makedirs(db_dir, exist_ok=True)
         
     async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA journal_mode=WAL;")
+        await db.execute("PRAGMA busy_timeout=5000;")
+        await db.execute("PRAGMA synchronous=NORMAL;")
         await db.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1962,7 +1965,11 @@ async def api_disconnect(request: Request):
     user = verify_init_data(data.get('init_data',''))
     if not user:
         raise HTTPException(403)
-    await save_session(user['id'], None)
+    tid = user['id']
+    await save_session(tid, None)
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE search_tasks SET status='cancelled' WHERE telegram_id=? AND status='monitoring'", (tid,))
+        await db.commit()
     return {"ok": True}
 
 @app.get("/api/admin/settings")

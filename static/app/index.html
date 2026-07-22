@@ -1691,7 +1691,8 @@ async function requestTopup() {
         timeLeft--;
         if(timeLeft <= 0) {
           clearInterval(topupTimerInterval);
-          showToast('Vaqt tugadi. Boshqatdan summa yozing!', 'error');
+          showToast('⏳ 3 daqiqalik to\'lov vaqti tugadi!', 'error');
+          alert("⏳ 3 daqiqalik to'lov vaqti tugadi!\n\nAgar to'lovni o'tkazgan bo'lsangiz xavotir olmang, balans avtomatik to'ldiriladi. Lekin yangi to'lov uchun yangidan summa kiritishingiz so'raladi.");
           cancelTopup();
         } else {
           updateTimerDisplay();
