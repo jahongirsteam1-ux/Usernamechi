@@ -1257,13 +1257,6 @@ async def api_user(init_data: str = ""):
     await create_or_update_user(user)
     row = await get_user(tid)
     
-    # Auto-grant admin test balance if zero or container restarted
-    if tid in ADMIN_IDS and (not row or (row.get('balance', 0) < 100000)):
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute("UPDATE users SET balance=10000000, seller_balance=10000000 WHERE telegram_id=?", (tid,))
-            await db.commit()
-        row = await get_user(tid)
-        
     # Count stats
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute("SELECT COUNT(*) FROM orders WHERE telegram_id=?", (tid,)) as c:
