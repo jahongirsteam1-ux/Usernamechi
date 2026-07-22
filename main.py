@@ -1642,6 +1642,28 @@ async def api_seller_withdraw(request: Request):
     await bot_instance.session.close() if not bot_instance.session.closed else None
     return {"ok": True, "message": "So'rovingiz qabul qilindi. Admin 24 soat ichida to'lov amalga oshiradi va sizga xabar beriladi."}
 
+@app.post("/api/seller/transfer")
+async def api_seller_transfer(request: Request):
+    data = await request.json()
+    user = verify_init_data(data.get('init_data',''))
+    if not user: raise HTTPException(403)
+    tid = user['id']
+    amount = int(data.get('amount', 0))
+    
+    if amount < 1000:
+        return {"ok": False, "error": "Minimal o'tkazma: 1,000 so'm"}
+    
+    row = await get_user(tid)
+    seller_bal = row.get('seller_balance', 0) if row else 0
+    if seller_bal < amount:
+        return {"ok": False, "error": f"Sotuvchi balansingiz yetarli emas ({seller_bal:,} so'm)"}
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE users SET seller_balance=seller_balance-?, balance=balance+? WHERE telegram_id=?", (amount, amount, tid))
+        await db.commit()
+    
+    return {"ok": True, "message": f"{amount:,} so'm asosiy balansga o'tkazildi!"}
+
 # ── PREMIUM & SUBSCRIPTIONS ────────────────────
 @app.post("/api/premium/buy")
 async def api_premium_buy(request: Request):

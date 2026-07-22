@@ -744,11 +744,13 @@
   <!-- Sotuvchi Balansi & Pul yechish -->
   <div class="card" id="seller-balance-wrap" style="display:none; background:linear-gradient(135deg,rgba(16,185,129,0.15),rgba(6,182,212,0.1)); border-color:rgba(16,185,129,0.3);">
     <div class="label" style="color:var(--muted);font-size:13px;margin-bottom:8px;">Sotuvchi balansi (Savdodan tushgan)</div>
-    <div class="amount" id="seller-balance-amount" style="font-size:32px;font-weight:800;color:var(--success);margin-bottom:12px;">0 so'm</div>
-    
-    <div id="withdraw-form" style="display:none;margin-top:16px;border-top:1px solid rgba(255,255,255,0.1);padding-top:16px;">
+    <div class="amount" id="seller-balance-amount" style="font-size:32px;font-weight:800;color:var(--success);margin-bottom:16px;">0 so'm</div>
+
+    <!-- Kartaga yechish formasi -->
+    <div id="withdraw-form" style="display:none;margin-top:4px;border-top:1px solid rgba(255,255,255,0.1);padding-top:16px;">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;">💳 Kartaga yechish</div>
       <div class="form-group">
-        <label>YECHIB OLISH SUMMASI</label>
+        <label>SUMMA (so'm)</label>
         <input type="number" id="withdraw-amount" placeholder="Min 10,000" min="10000">
       </div>
       <div class="form-group">
@@ -759,11 +761,27 @@
         <label>KARTA EGASI (Ism Familiya)</label>
         <input type="text" id="withdraw-name" placeholder="Ali Valiyev">
       </div>
-      <button class="btn btn-success" onclick="submitWithdraw()">Tasdiqlash</button>
-      <button class="btn btn-outline" onclick="document.getElementById('withdraw-form').style.display='none'">Bekor qilish</button>
+      <button class="btn btn-primary" onclick="submitWithdraw()">✅ Tasdiqlash</button>
+      <button class="btn btn-outline" onclick="document.getElementById('withdraw-form').style.display='none'; document.getElementById('transfer-form').style.display='none';">❌ Bekor qilish</button>
     </div>
-    
-    <button class="btn btn-primary" style="margin:0;" onclick="document.getElementById('withdraw-form').style.display='block'" id="btn-show-withdraw">Yechib olish</button>
+
+    <!-- Asosiy balansga o'tkazish formasi -->
+    <div id="transfer-form" style="display:none;margin-top:4px;border-top:1px solid rgba(255,255,255,0.1);padding-top:16px;">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;">🔄 Asosiy balansga o'tkazish</div>
+      <div class="form-group">
+        <label>SUMMA (so'm)</label>
+        <input type="number" id="transfer-amount" placeholder="Min 1,000" min="1000">
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">💡 Sotuvchi balansingizdan asosiy balansingizga o'tkaziladi (darhol)</div>
+      <button class="btn btn-primary" style="background:linear-gradient(135deg,#7c3aed,#06b6d4);" onclick="submitTransferToMain()">✅ O'tkazish</button>
+      <button class="btn btn-outline" onclick="document.getElementById('withdraw-form').style.display='none'; document.getElementById('transfer-form').style.display='none';">❌ Bekor qilish</button>
+    </div>
+
+    <!-- Ikki tugma -->
+    <div id="seller-action-btns" style="display:flex; gap:10px;">
+      <button class="btn btn-primary" style="margin:0; flex:1; background:linear-gradient(135deg,#10b981,#06b6d4); font-size:13px;" onclick="document.getElementById('withdraw-form').style.display='block'; document.getElementById('transfer-form').style.display='none'; document.getElementById('seller-action-btns').style.display='none';">💳 Kartaga yechish</button>
+      <button class="btn btn-primary" style="margin:0; flex:1; background:linear-gradient(135deg,#7c3aed,#a78bfa); font-size:13px;" onclick="document.getElementById('transfer-form').style.display='block'; document.getElementById('withdraw-form').style.display='none'; document.getElementById('seller-action-btns').style.display='none';">🔄 Asosiy balansga</button>
+    </div>
   </div>
 
   <!-- REFERRAL SYSTEM CARD -->
@@ -1027,15 +1045,43 @@ async function submitWithdraw() {
     });
     const d = await res.json();
     if(d.ok) {
-      showToast(d.message, "success");
+      showToast(d.message || "So'rov yuborildi!", "success");
       document.getElementById('withdraw-form').style.display = 'none';
+      document.getElementById('seller-action-btns').style.display = 'flex';
       loadUserData();
     } else {
       showToast(d.error, "error");
     }
   } catch(e) { showToast("Xato", "error"); }
   btn.disabled = false;
-  btn.innerText = "Tasdiqlash";
+  btn.innerText = "✅ Tasdiqlash";
+}
+
+async function submitTransferToMain() {
+  const amount = parseInt(document.getElementById('transfer-amount').value);
+  if (!amount || amount < 1000) { showToast("Minimal summa: 1,000 so'm", "error"); return; }
+  
+  const btn = event.target;
+  btn.disabled = true;
+  btn.innerText = "O'tkazilmoqda...";
+  try {
+    const res = await fetch(`${API}/api/seller/transfer`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({init_data: tg.initData, amount})
+    });
+    const d = await res.json();
+    if(d.ok) {
+      showToast(`✅ ${amount.toLocaleString()} so'm asosiy balansga o'tkazildi!`, "success");
+      document.getElementById('transfer-form').style.display = 'none';
+      document.getElementById('seller-action-btns').style.display = 'flex';
+      document.getElementById('transfer-amount').value = '';
+      loadUserData();
+    } else {
+      showToast(d.error, "error");
+    }
+  } catch(e) { showToast("Xato", "error"); }
+  btn.disabled = false;
+  btn.innerText = "✅ O'tkazish";
 }
 
 function copyRefLink() {
