@@ -271,9 +271,10 @@
 
   /* SECTION TITLE */
   .section-title {
-    font-size: 19px; font-weight: 800;
-    margin-bottom: 18px; color: var(--text);
+    font-size: 17px; font-weight: 800;
+    margin-bottom: 16px; color: var(--text);
     display: flex; align-items: center; gap: 8px;
+    flex-wrap: nowrap; white-space: nowrap;
   }
   .section-title span {
     background: linear-gradient(135deg, #c084fc, #38bdf8);
@@ -433,7 +434,7 @@
 
   <!-- INSTANT USERNAME CHECKER WIDGET -->
   <div class="card">
-    <div class="section-title"><span class="icon-3d">🔍</span> <span>Tezkor</span> Username Tekshirgich</div>
+    <div class="section-title"><span class="icon-3d">🔍</span> <span>Tezkor Username</span> Tekshirgich</div>
     <div style="font-size:13px; color:var(--muted); margin-bottom:12px;">Telegram'da istalgan username hozir bo'sh yoki bandligini darhol tekshiring:</div>
     <div style="display:flex; gap:8px;">
       <input type="text" id="check-username-input" placeholder="super_name" style="flex:1; padding:12px 14px; border-radius:12px; font-size:14px; outline:none;">
