@@ -396,6 +396,25 @@
     </div>
   </div>
 
+  <!-- INSTANT USERNAME CHECKER WIDGET -->
+  <div class="card">
+    <div class="section-title"><span class="icon-3d">🔍</span> <span>Tezkor</span> Username Tekshirgich</div>
+    <div style="font-size:13px; color:var(--muted); margin-bottom:12px;">Telegram'da istalgan username hozir bo'sh yoki bandligini darhol tekshiring:</div>
+    <div style="display:flex; gap:8px;">
+      <input type="text" id="check-username-input" placeholder="super_name" style="flex:1; padding:12px 14px; border-radius:12px; font-size:14px; outline:none;">
+      <button class="btn btn-primary" id="btn-check-username" onclick="checkUsernameInstant()" style="width:auto; margin:0; padding:12px 16px; border-radius:12px; font-size:13px;">Tekshirish</button>
+    </div>
+    <div id="check-username-result" style="display:none; margin-top:12px; font-size:14px; font-weight:700; text-align:center; padding:10px; border-radius:12px;"></div>
+  </div>
+
+  <!-- TOP LISTINGS CAROUSEL -->
+  <div class="card" id="top-carousel-card" style="display:none; padding:18px 18px 14px;">
+    <div class="section-title" style="margin-bottom:12px;"><span class="icon-3d">🔥</span> <span>TOP</span> E'lonlar</div>
+    <div id="top-carousel-wrap" style="display:flex; gap:12px; overflow-x:auto; padding-bottom:8px; scrollbar-width:none;">
+      <!-- Carousel items will drop here -->
+    </div>
+  </div>
+
   <!-- USERNAME SOTIB OLISH FORMASI -->
   <div class="card">
     <div class="section-title"><span class="icon-3d">✨</span> <span>Username</span> sotib olish</div>
@@ -659,10 +678,6 @@
     <input type="number" id="post-price-input" placeholder="Masalan: 50000">
   </div>
   
-  <div class="form-group" style="display:flex; align-items:center; gap:8px;">
-    <input type="checkbox" id="post-private-checkbox" style="width:auto; height:auto; margin:0;">
-    <label for="post-private-checkbox" style="margin:0; font-size:13px; cursor:pointer;">Garant xizmati - 3% komissiya</label>
-  </div>
 
   <button class="btn btn-primary" id="btn-submit-post" onclick="submitPostListing()" style="margin-bottom:8px;">Joylash</button>
   <button class="btn btn-outline" onclick="closeMarketPost()">Bekor qilish</button>
@@ -1085,7 +1100,6 @@ async function loadMyListings() {
             <div style="text-align:right;">
               <div style="font-weight:700; font-size:14px; color:${l.status=='active'?'var(--success)':'var(--muted)'}">${statTxt[l.status]||l.status}</div>
               ${l.status == 'active' ? `<button class="btn btn-danger" style="padding:4px 8px; font-size:11px; margin:4px 0 0; width:auto;" onclick="cancelListing(${l.id})">O'chirish</button>` : ''}
-              ${l.is_private && l.status == 'active' ? `<div style="margin-top:8px;"><button class="btn btn-outline" style="padding:4px 8px; font-size:11px; width:auto; border-color:var(--accent); color:var(--accent);" onclick="copyEscrowLink(${l.id}, '${l.username}')">🔗 Garant havolasi</button></div>` : ''}
             </div>
           </div>
         </div>
@@ -1149,15 +1163,12 @@ function closeMarketPost() {
 async function submitPostListing() {
   const username = document.getElementById('post-username-select').value;
   const price = parseInt(document.getElementById('post-price-input').value);
-  const is_private = document.getElementById('post-private-checkbox').checked ? 1 : 0;
   
   if (!username) { showToast('Username tanlang!', 'error'); return; }
   if (!price || price < 1000) { showToast('Narxni to\'g\'ri kiriting (min 1,000)', 'error'); return; }
   
   let listingPriceStr = window.APP_PRICES ? window.APP_PRICES.listing.toLocaleString() : '1,000';
   let confirmMsg = `Haqiqatdan ham @${username} ni ${price.toLocaleString()} so'mga sotuvga qo'yib, balansingizdan ${listingPriceStr} so'm e'lon to'lovini yechishga rozimisiz?`;
-  if (is_private) confirmMsg = `GARANT XIZMATI: @${username} ni ${price.toLocaleString()} so'mga garant orqali sotishga rozimisiz? Balansingizdan ${listingPriceStr} so'm e'lon to'lovi yechiladi.`;
-  
   if (!confirm(confirmMsg)) return;
   
   const btn = document.getElementById('btn-submit-post');
@@ -1166,7 +1177,7 @@ async function submitPostListing() {
   try {
     const res = await fetch(`${API}/api/marketplace/list`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({init_data: tg.initData, username, price, is_private})
+      body: JSON.stringify({init_data: tg.initData, username, price})
     });
     const d = await res.json();
     if(d.ok) {

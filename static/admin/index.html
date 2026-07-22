@@ -223,7 +223,16 @@ async function loadDashboard() {
     document.getElementById('d-orders').textContent = d.orders||0;
     document.getElementById('d-usernames').textContent = d.usernames||0;
     document.getElementById('d-revenue').textContent = (d.revenue||0).toLocaleString();
-    drawChart('revenue-chart', d.daily_labels||[], d.daily_revenue||[], '#7c3aed', 'Daromad');
+    drawChart('revenue-chart', d.daily_labels||[], d.daily_revenue||[], '#7c3aed', 'Daromad (so\'m)');
+    
+    // Extra Analytics
+    const aRes = await fetch('/api/admin/analytics', {headers: h()});
+    if (aRes.ok) {
+      const a = await aRes.json();
+      if(a.chart_labels && a.chart_labels.length) {
+        drawChart('revenue-chart', a.chart_labels, a.chart_data, '#06b6d4', 'Sotilgan e\'lonlar tushumi');
+      }
+    }
   } catch(e) {}
   loadPendingPayments();
 }

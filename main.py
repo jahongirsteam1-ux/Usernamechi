@@ -579,10 +579,8 @@ async def auto_payment_handler(message: Message):
                     await db.execute("UPDATE listing_orders SET status='completed' WHERE id=?", (lo['id'],))
                     await db.execute("UPDATE listings SET status='sold' WHERE id=?", (lo['listing_id'],))
                     
-                    # Komissiya hisoblash
-                    if lo['is_private'] == 1:
-                        fee_percent = 0.03
-                    elif lo['is_premium'] == 1:
+                    # Komissiya hisoblash (Premium: 5%, Oddiy: 10%)
+                    if lo['is_premium'] == 1:
                         fee_percent = 0.05
                     else:
                         fee_percent = 0.10
@@ -1341,7 +1339,7 @@ async def api_marketplace(init_data: str = "", sort: str = "newest", offset: int
             SELECT l.*, u.first_name as seller_name, u.username as seller_username, 
                    (CASE WHEN u.is_premium = 1 AND (u.premium_until IS NULL OR u.premium_until > datetime('now')) THEN 1 ELSE 0 END) as is_premium
             FROM listings l LEFT JOIN users u ON l.seller_id = u.telegram_id
-            WHERE l.status='active' AND l.is_private=0 {order_clause} LIMIT 20 OFFSET ?
+            WHERE l.status='active' {order_clause} LIMIT 20 OFFSET ?
         """, (offset,)) as c:
             rows = [dict(r) for r in await c.fetchall()]
     return rows
@@ -1385,13 +1383,12 @@ async def api_marketplace_list(request: Request):
     
     await deduct_balance(tid, LISTING_FEE)
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("INSERT INTO listings (seller_id, username, price, is_private) VALUES (?,?,?,?)", (tid, username, price, is_private))
+        await db.execute("INSERT INTO listings (seller_id, username, price) VALUES (?,?,?)", (tid, username, price))
         await db.commit()
         
-        if is_private == 0:
-            db.row_factory = aiosqlite.Row
-            async with db.execute("SELECT DISTINCT user_id FROM keyword_subscriptions WHERE ? LIKE '%' || keyword || '%'", (username,)) as c:
-                subs = await c.fetchall()
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT DISTINCT user_id FROM keyword_subscriptions WHERE ? LIKE '%' || keyword || '%'", (username,)) as c:
+            subs = await c.fetchall()
             
             if subs:
                 bot_instance = Bot(token=BOT_TOKEN)
@@ -1474,7 +1471,63 @@ async def api_marketplace_buy(request: Request):
     
     return {"ok": False, "error": "Xatolik yuz berdi"}
 
-# ── SELLER BALANCE & WITHDRAWAL ────────────────
+# ── TOP LISTINGS & USERNAME CHECKER ─────────────
+@app.get("/api/marketplace/top")
+async def api_marketplace_top(init_data: str = ""):
+    user = verify_init_data(init_data)
+    if not user: raise HTTPException(403)
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("""
+            SELECT l.*, u.first_name as seller_name, u.username as seller_username,
+                   (CASE WHEN u.is_premium = 1 AND (u.premium_until IS NULL OR u.premium_until > datetime('now')) THEN 1 ELSE 0 END) as is_premium
+            FROM listings l LEFT JOIN users u ON l.seller_id = u.telegram_id
+            WHERE l.status='active' AND u.is_premium=1
+            ORDER BY l.id DESC LIMIT 10
+        """) as c:
+            rows = [dict(r) for r in await c.fetchall()]
+            if not rows:
+                async with db.execute("""
+                    SELECT l.*, u.first_name as seller_name, u.username as seller_username, 0 as is_premium
+                    FROM listings l LEFT JOIN users u ON l.seller_id = u.telegram_id
+                    WHERE l.status='active'
+                    ORDER BY l.price DESC LIMIT 10
+                """) as c2:
+                    rows = [dict(r) for r in await c2.fetchall()]
+    return rows
+
+@app.post("/api/check_username")
+async def api_check_username(request: Request):
+    data = await request.json()
+    user = verify_init_data(data.get('init_data',''))
+    if not user: raise HTTPException(403)
+    username = data.get('username', '').strip().replace('@', '')
+    if not username:
+        return {"ok": False, "error": "Username kiriting"}
+        
+    tid = user['id']
+    row = await get_user(tid)
+    session_str = row.get('session_string') if row else None
+    
+    if not session_str:
+        return {"ok": False, "error": "Avval Akkaunt bo'limida Telegram akkauntingizni ulang!"}
+        
+    try:
+        from telethon import TelegramClient
+        from telethon.sessions import StringSession
+        from telethon.tl.functions.account import CheckUsernameRequest
+        
+        client = TelegramClient(StringSession(session_str), API_ID, API_HASH)
+        await client.connect()
+        try:
+            res = await client(CheckUsernameRequest(username=username))
+            available = bool(res)
+        except Exception:
+            available = False
+        await client.disconnect()
+        return {"ok": True, "username": username, "available": available}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 @app.get("/api/seller/balance")
 async def api_seller_balance(init_data: str = ""):
     user = verify_init_data(init_data)
@@ -2014,7 +2067,43 @@ async def api_admin_settings_set(request: Request, x_admin_token: str = Header(d
         await set_setting("listing_price", data['listing_price'])
     return {"ok": True}
 
-# ── Admin API ──────────────────────────────────
+@app.get("/api/admin/analytics")
+async def api_admin_analytics(x_admin_token: str = Header(default="")):
+    for aid in ADMIN_IDS:
+        if get_admin_token(aid) == x_admin_token: break
+    else: raise HTTPException(403)
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT COUNT(*) FROM users") as c:
+            total_users = (await c.fetchone())[0]
+        async with db.execute("SELECT COUNT(*) FROM listings WHERE status='sold'") as c:
+            total_sold = (await c.fetchone())[0]
+        async with db.execute("SELECT SUM(amount) FROM topups WHERE status='approved'") as c:
+            total_topups = (await c.fetchone())[0] or 0
+        async with db.execute("SELECT COUNT(*) FROM users WHERE is_premium=1") as c:
+            total_premiums = (await c.fetchone())[0]
+            
+        labels = []
+        sales_data = []
+        async with db.execute("""
+            SELECT date(created_at, 'unixepoch') as day, SUM(price) as daily_total
+            FROM listings WHERE status='sold' AND created_at > (strftime('%s','now') - 7*86400)
+            GROUP BY day ORDER BY day ASC
+        """) as c:
+            rows = await c.fetchall()
+            for r in rows:
+                labels.append(r['day'] or '')
+                sales_data.append(r['daily_total'] or 0)
+                
+    return {
+        "total_users": total_users,
+        "total_sold": total_sold,
+        "total_topups": total_topups,
+        "total_premiums": total_premiums,
+        "chart_labels": labels if labels else ["Bugun"],
+        "chart_data": sales_data if sales_data else [0]
+    }
 @app.get("/api/admin/auth")
 async def admin_auth(request: Request):
     """Telegram Login Widget orqali kirish"""
