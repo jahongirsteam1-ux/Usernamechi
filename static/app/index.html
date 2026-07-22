@@ -79,7 +79,7 @@
     box-shadow: 0 0 10px var(--accent-light);
   }
   nav button svg { width: 22px; height: 22px; transition: transform 0.2s ease; }
-  nav button.active svg { transform: scale(1.1); filter: drop-shadow(0 0 8px var(--accent)); }
+  nav button.active svg { transform: translateY(-3px) scale(1.2) rotateX(10deg); filter: drop-shadow(0 6px 14px var(--accent-light)); }
 
   /* PAGES */
   .page { display: none; padding: 18px 16px 100px; position: relative; z-index: 1; animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
@@ -139,9 +139,36 @@
     transition: transform 0.2s ease;
   }
   .stat-card:active { transform: scale(0.98); }
+  /* 3D ANIMATED ICONS & SHIMMER */
+  .icon-3d {
+    display: inline-block;
+    animation: float3d 3.5s ease-in-out infinite alternate;
+    filter: drop-shadow(0 8px 16px rgba(139, 92, 246, 0.4));
+    transform-style: preserve-3d;
+    perspective: 500px;
+    will-change: transform;
+  }
+  .icon-3d-fast {
+    animation-duration: 2.2s;
+  }
+  .icon-3d-pulse {
+    animation: pulse3d 2.5s ease-in-out infinite alternate;
+  }
+
+  @keyframes float3d {
+    0% { transform: translateY(0px) rotateX(0deg) rotateY(0deg) scale(1); filter: drop-shadow(0 6px 12px rgba(139, 92, 246, 0.3)); }
+    50% { transform: translateY(-7px) rotateX(14deg) rotateY(-10deg) scale(1.12); filter: drop-shadow(0 16px 24px rgba(139, 92, 246, 0.55)); }
+    100% { transform: translateY(0px) rotateX(-6deg) rotateY(12deg) scale(1); filter: drop-shadow(0 6px 12px rgba(139, 92, 246, 0.3)); }
+  }
+
+  @keyframes pulse3d {
+    0% { transform: scale(1) translateZ(0); filter: drop-shadow(0 4px 10px rgba(6, 182, 212, 0.3)); }
+    100% { transform: scale(1.15) translateZ(12px) rotate(-4deg); filter: drop-shadow(0 12px 24px rgba(6, 182, 212, 0.6)); }
+  }
+
   .stat-card .icon { 
-    font-size: 26px; margin-bottom: 6px; 
-    display: inline-block; filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4)); 
+    font-size: 28px; margin-bottom: 6px; 
+    display: inline-block;
   }
   .stat-card .val { font-size: 24px; font-weight: 800; color: var(--text); }
   .stat-card .lbl { font-size: 12px; color: var(--muted); margin-top: 3px; font-weight: 500; }
@@ -344,9 +371,9 @@
 <!-- HOME PAGE -->
 <div class="page active" id="page-home">
   <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
-    <div>Salom, <span id="user-name">...</span> 👋</div>
+    <div>Salom, <span id="user-name">...</span> <span class="icon-3d">👋</span></div>
     <div style="background:rgba(139,92,246,0.15); border:1px solid rgba(167,139,250,0.3); border-radius:20px; padding:6px 14px; font-size:12px; font-weight:700; color:#c084fc; display:flex; align-items:center; gap:6px;">
-      <span style="width:8px; height:8px; background:#10b981; border-radius:50%; display:inline-block; box-shadow:0 0 8px #10b981;"></span> Online
+      <span style="width:8px; height:8px; background:#10b981; border-radius:50%; display:inline-block; box-shadow:0 0 8px #10b981;" class="icon-3d-pulse"></span> Online
     </div>
   </div>
 
@@ -358,12 +385,12 @@
 
   <div class="stats">
     <div class="stat-card">
-      <div class="icon">🚀</div>
+      <div class="icon icon-3d">🚀</div>
       <div class="val" id="stat-orders">0</div>
       <div class="lbl">Buyurtmalar</div>
     </div>
     <div class="stat-card">
-      <div class="icon">💎</div>
+      <div class="icon icon-3d icon-3d-fast">💎</div>
       <div class="val" id="stat-usernames">0</div>
       <div class="lbl">Band qilingan</div>
     </div>
@@ -371,7 +398,7 @@
 
   <!-- USERNAME SOTIB OLISH FORMASI -->
   <div class="card">
-    <div class="section-title">✨ <span>Username</span> sotib olish</div>
+    <div class="section-title"><span class="icon-3d">✨</span> <span>Username</span> sotib olish</div>
 
     <div class="card" id="no-session-warn" style="display:none;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);border-radius:16px;padding:14px;margin-bottom:14px;color:#f87171;font-size:13px;font-weight:600;">
       ⚠️ Avval <b>Akkaunt</b> bo'limiga o'tib, Telegram akkauntingizni ulang!
