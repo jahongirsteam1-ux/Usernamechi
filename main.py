@@ -626,11 +626,8 @@ async def start_cmd(message: Message):
         except Exception:
             pass
 
-    from aiogram.types import FSInputFile
-    banner = FSInputFile("static/welcome_banner.png")
-    await message.answer_photo(
-        photo=banner,
-        caption=(
+    await message.answer(
+        text=(
             f"👋 Salom, <b>{message.from_user.first_name}</b>!\n\n"
             f"🎯 <b>Usernamechi Bot</b>ga xush kelibsiz!\n\n"
             f"Bu bot orqali siz <b>qisqa, chiroyli va ma'noli</b> "
