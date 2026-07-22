@@ -1806,8 +1806,8 @@ async def api_topup_request(request: Request):
         raise HTTPException(403)
     tid = user['id']
     amount = int(data.get('amount', 0))
-    if amount < 1000:
-        return {"ok": False, "error": "Eng kamida 1,000 so'm"}
+    if amount < 15000:
+        return {"ok": False, "error": "Eng kamida 15,000 so'm"}
     
     # Generate unique amount (add 1 to 99 tiyin)
     async with aiosqlite.connect(DB_PATH) as db:

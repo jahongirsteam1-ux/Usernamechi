@@ -434,7 +434,7 @@
 
   <!-- INSTANT USERNAME CHECKER WIDGET -->
   <div class="card">
-    <div class="section-title"><span class="icon-3d">🔍</span> <span>Tezkor Username</span> Tekshirgich</div>
+    <div class="section-title"><span class="icon-3d">🔍</span> <span>Tezkor Username Tekshirgich</span></div>
     <div style="font-size:13px; color:var(--muted); margin-bottom:12px;">Telegram'da istalgan username hozir bo'sh yoki bandligini darhol tekshiring:</div>
     <div style="display:flex; gap:8px;">
       <input type="text" id="check-username-input" placeholder="super_name" style="flex:1; padding:12px 14px; border-radius:12px; font-size:14px; outline:none;">
@@ -591,9 +591,9 @@
     <div class="section-title">Balansni to'ldirish</div>
     <div class="form-group">
       <label>QANCHA TO'LDIRMOQCHISIZ?</label>
-      <input type="number" id="topup-amount" placeholder="50000" min="1000">
+      <input type="number" id="topup-amount" placeholder="50000" min="15000">
       <div style="color:var(--muted);font-size:11px;margin-top:6px;">
-        💡 Minimal summa: 1,000 so'm
+        💡 Minimal summa: 15,000 so'm
       </div>
     </div>
     <button class="btn btn-primary" onclick="requestTopup()">
@@ -1822,7 +1822,7 @@ let topupTimerInterval = null;
 async function requestTopup() {
   const amtInput = document.getElementById('topup-amount').value;
   const amt = parseInt(amtInput);
-  if (!amt || amt < 1000) { showToast('Kamida 1,000 so\'m kiriting', 'error'); return; }
+  if (!amt || amt < 15000) { showToast('Kamida 15,000 so\'m kiriting', 'error'); return; }
   
   try {
     const res = await fetch(`${API}/api/topup/request`, {
