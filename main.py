@@ -217,6 +217,16 @@ async def init_db():
 
         # Migration: mavjud jadvallarni yangi ustunlar bilan yangilash
         try:
+            await db.execute("ALTER TABLE users ADD COLUMN referred_by INTEGER DEFAULT 0")
+            await db.execute("ALTER TABLE listings ADD COLUMN is_auction INTEGER DEFAULT 0")
+            await db.execute("ALTER TABLE listings ADD COLUMN current_bid INTEGER DEFAULT 0")
+            await db.execute("ALTER TABLE listings ADD COLUMN highest_bidder_id INTEGER DEFAULT 0")
+            await db.execute("ALTER TABLE listings ADD COLUMN auction_ends_at REAL DEFAULT 0")
+            await db.commit()
+        except Exception:
+            pass
+            
+        try:
             await db.execute("ALTER TABLE search_tasks ADD COLUMN paid_qty INTEGER DEFAULT 1")
             await db.commit()
         except Exception:
@@ -606,17 +616,15 @@ async def start_cmd(message: Message):
     await create_user(message.from_user.id)
     
     args = message.text.split(" ", 1)
-    if len(args) > 1 and args[1].startswith("escrow_"):
-        listing_id = args[1].split("_")[1]
-        markup = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🛡 Xaridni amalga oshirish", web_app=WebAppInfo(url=f"{WEB_URL}/app?v=2&escrow={listing_id}"))]
-        ])
-        await message.answer(
-            "🛡 <b>Garant xizmati</b>\n\n"
-            "Quyidagi tugma orqali ilovaga kiring va xaridni xavfsiz tarzda amalga oshiring:", 
-            reply_markup=markup, parse_mode="HTML"
-        )
-        return
+    if len(args) > 1 and args[1].startswith("ref_"):
+        try:
+            ref_id = int(args[1].split("_")[1])
+            if ref_id != message.from_user.id:
+                async with aiosqlite.connect(DB_PATH) as db:
+                    await db.execute("UPDATE users SET referred_by=? WHERE telegram_id=? AND (referred_by IS NULL OR referred_by=0)", (ref_id, message.from_user.id))
+                    await db.commit()
+        except Exception:
+            pass
 
     from aiogram.types import FSInputFile
     banner = FSInputFile("static/welcome_banner.png")
@@ -1247,13 +1255,18 @@ async def api_user(init_data: str = ""):
         raise HTTPException(403, "Invalid init_data")
     tid = user['id']
     await create_or_update_user(user)
-    row = await get_user(tid)
     # Count stats
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute("SELECT COUNT(*) FROM orders WHERE telegram_id=?", (tid,)) as c:
             total_orders = (await c.fetchone())[0]
         async with db.execute("SELECT COUNT(*) FROM registered_usernames ru JOIN orders o ON ru.order_id=o.id WHERE o.telegram_id=?", (tid,)) as c:
             total_usernames = (await c.fetchone())[0]
+        async with db.execute("SELECT COUNT(*) FROM users WHERE referred_by=?", (tid,)) as c:
+            referral_count = (await c.fetchone())[0]
+            
+    bot_username = (await Bot(token=BOT_TOKEN).get_me()).username
+    ref_link = f"https://t.me/{bot_username}?start=ref_{tid}"
+    
     premium_price = int(await get_setting("premium_price", 20000))
     monitor_price = int(await get_setting("monitor_price", 10000))
     listing_price = int(await get_setting("listing_price", 1000))
@@ -1266,6 +1279,8 @@ async def api_user(init_data: str = ""):
             "is_premium": row.get("is_premium", 0) if row else 0,
             "premium_until": row.get("premium_until", "") if row else "",
             "total_orders": total_orders, "total_usernames": total_usernames,
+            "referral_count": referral_count,
+            "ref_link": ref_link,
             "premium_price": premium_price,
             "monitor_price": monitor_price,
             "listing_price": listing_price}
@@ -1381,9 +1396,13 @@ async def api_marketplace_list(request: Request):
             if await c.fetchone():
                 return {"ok": False, "error": "Bu username allaqachon sotuvda"}
     
+    is_auction = 1 if data.get('is_auction') else 0
+    auction_ends_at = time.time() + 86400 if is_auction else 0
+    
     await deduct_balance(tid, LISTING_FEE)
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("INSERT INTO listings (seller_id, username, price) VALUES (?,?,?)", (tid, username, price))
+        await db.execute("INSERT INTO listings (seller_id, username, price, is_auction, current_bid, auction_ends_at) VALUES (?,?,?,?,?,?)", 
+                         (tid, username, price, is_auction, price if is_auction else 0, auction_ends_at))
         await db.commit()
         
         db.row_factory = aiosqlite.Row
@@ -1496,7 +1515,46 @@ async def api_marketplace_top(init_data: str = ""):
                     rows = [dict(r) for r in await c2.fetchall()]
     return rows
 
-@app.post("/api/check_username")
+# ── AUCTION BID ENDPOINT ──────────────────────
+@app.post("/api/auction/bid")
+async def api_auction_bid(request: Request):
+    data = await request.json()
+    user = verify_init_data(data.get('init_data',''))
+    if not user: raise HTTPException(403)
+    tid = user['id']
+    listing_id = int(data.get('listing_id', 0))
+    bid_amount = int(data.get('bid_amount', 0))
+    
+    row = await get_user(tid)
+    if not row or not row.get('session_string'):
+        return {"ok": False, "error": "Avval akkauntingizni ulang!"}
+        
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM listings WHERE id=? AND status='active' AND is_auction=1", (listing_id,)) as c:
+            listing = await c.fetchone()
+        if not listing:
+            return {"ok": False, "error": "Auksion topilmadi yoki yakunlangan"}
+        if listing['seller_id'] == tid:
+            return {"ok": False, "error": "O'z auksioningizga stavka bera olmaysiz"}
+            
+        min_bid = max(listing['price'], (listing['current_bid'] or listing['price']) + 1000)
+        if bid_amount < min_bid:
+            return {"ok": False, "error": f"Minimal stavka: {min_bid:,} so'm"}
+        if (row.get('balance') or 0) < bid_amount:
+            return {"ok": False, "error": f"Balansingiz yetarli emas ({bid_amount:,} so'm kerak)"}
+            
+        prev_bidder = listing['highest_bidder_id']
+        await db.execute("UPDATE listings SET current_bid=?, highest_bidder_id=? WHERE id=?", (bid_amount, tid, listing_id))
+        await db.commit()
+        
+        if prev_bidder and prev_bidder != tid:
+            try:
+                bot_inst = Bot(token=BOT_TOKEN)
+                await bot_inst.send_message(prev_bidder, f"⚡ <b>Stavka oshirildi!</b>\n\n@{listing['username']} auksionida sizning stavkangizdan yuqori (<b>{bid_amount:,} so'm</b>) stavka berildi.")
+            except Exception: pass
+            
+        return {"ok": True, "new_bid": bid_amount}
 async def api_check_username(request: Request):
     data = await request.json()
     user = verify_init_data(data.get('init_data',''))
@@ -2171,6 +2229,20 @@ async def admin_approve(request: Request, x_admin_token: str = Header(default=""
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("UPDATE payments SET status='approved', amount=? WHERE id=?", (amt, pid))
         await db.execute("UPDATE users SET balance=balance+? WHERE telegram_id=?", (amt, tid))
+        
+        # Referral 5% bonus
+        async with db.execute("SELECT referred_by FROM users WHERE telegram_id=?", (tid,)) as c:
+            r = await c.fetchone()
+            if r and r[0]:
+                ref_id = r[0]
+                bonus = int(amt * 0.05)
+                if bonus > 0:
+                    await db.execute("UPDATE users SET balance=balance+? WHERE telegram_id=?", (bonus, ref_id))
+                    try:
+                        b_inst = Bot(token=BOT_TOKEN)
+                        await b_inst.send_message(ref_id, f"🎁 <b>Referral Bonus!</b>\n\nSiz taklif qilgan do'stingiz balans to'ldirdi. Balansingizga <b>+{bonus:,} so'm</b> keshbek berildi! 🚀", parse_mode="HTML")
+                    except Exception: pass
+                    
         await db.commit()
     bot_instance = Bot(token=BOT_TOKEN)
     try:
