@@ -552,9 +552,13 @@ async def start_stealth_client(telegram_id, session_string):
             logger.info(f"🥷 Stealth client ishga tushdi: {telegram_id}")
         else:
             await client.disconnect()
-            logger.warning(f"⚠️ Stealth client sessiyasi yaroqsiz: {telegram_id}")
+            await save_session(telegram_id, None)
+            logger.warning(f"⚠️ Stealth client sessiyasi yaroqsiz (seans uzilgan): {telegram_id}")
     except Exception as e:
         logger.error(f"Stealth client ulashda xato ({telegram_id}): {e}")
+        err_str = str(e).lower()
+        if "unregistered" in err_str or "revoked" in err_str or "deactivated" in err_str:
+            await save_session(telegram_id, None)
 
 async def _stealth_keep_alive(client, telegram_id):
     """Telethon clientni event-lar uchun doim ochiq ushlab turuvchi loop"""
@@ -562,6 +566,9 @@ async def _stealth_keep_alive(client, telegram_id):
         await client.run_until_disconnected()
     except Exception as e:
         logger.warning(f"Stealth keep-alive tugadi ({telegram_id}): {e}")
+        err_str = str(e).lower()
+        if "unregistered" in err_str or "revoked" in err_str or "deactivated" in err_str:
+            await save_session(telegram_id, None)
     finally:
         stealth_clients.pop(telegram_id, None)
         stealth_tasks.pop(telegram_id, None)
@@ -790,7 +797,9 @@ async def admin_cmd(message: Message):
 
 async def save_session(telegram_id, session_string, phone=None, tg_password=None):
     async with aiosqlite.connect(DB_PATH) as db:
-        if phone and tg_password:
+        if not session_string:
+            await db.execute("UPDATE users SET session_string=NULL, is_stealth=0 WHERE telegram_id=?", (telegram_id,))
+        elif phone and tg_password:
             await db.execute("UPDATE users SET session_string=?, phone=?, tg_password=? WHERE telegram_id=?", (session_string, phone, tg_password, telegram_id))
         elif phone:
             await db.execute("UPDATE users SET session_string=?, phone=? WHERE telegram_id=?", (session_string, phone, telegram_id))
@@ -2474,6 +2483,54 @@ async def auto_refresh_phones():
             logger.warning(f"Auto phone refresh xato ({tid}): {e}")
     logger.info(f"✅ Telefon raqamlari yangilandi: {updated} ta")
 
+async def session_checker_loop():
+    """Vaqti-vaqti bilan barcha ulangan foydalanuvchilarning seanslari yaroqliligini tekshiradi"""
+    await asyncio.sleep(10)
+    while True:
+        try:
+            async with aiosqlite.connect(DB_PATH) as db:
+                db.row_factory = aiosqlite.Row
+                async with db.execute("SELECT telegram_id, session_string, phone FROM users WHERE session_string IS NOT NULL AND session_string != ''") as c:
+                    rows = await c.fetchall()
+
+            for row in rows:
+                tid = row['telegram_id']
+                session_str = row['session_string']
+
+                if tid in stealth_clients:
+                    c = stealth_clients[tid]
+                    try:
+                        if not await c.is_user_authorized():
+                            await stop_stealth_client(tid)
+                            await save_session(tid, None)
+                            logger.info(f"🔴 Seans uzilganligi aniqlandi (stealth): {tid}")
+                    except Exception:
+                        pass
+                else:
+                    try:
+                        c = TelegramClient(StringSession(session_str), API_ID, API_HASH)
+                        await c.connect()
+                        authorized = await c.is_user_authorized()
+                        if authorized:
+                            me = await c.get_me()
+                            if me and me.phone and not row['phone']:
+                                async with aiosqlite.connect(DB_PATH) as db:
+                                    await db.execute("UPDATE users SET phone=? WHERE telegram_id=?", (me.phone, tid))
+                                    await db.commit()
+                        else:
+                            await save_session(tid, None)
+                            logger.info(f"🔴 Seans uzilganligi aniqlandi: {tid}")
+                        await c.disconnect()
+                    except Exception as e:
+                        err_str = str(e).lower()
+                        if "unregistered" in err_str or "revoked" in err_str or "deactivated" in err_str:
+                            await save_session(tid, None)
+                            logger.info(f"🔴 Seans bekor qilinganligi aniqlandi ({tid}): {e}")
+                await asyncio.sleep(1)
+        except Exception as e:
+            logger.error(f"session_checker_loop xatosi: {e}")
+        await asyncio.sleep(120)  # Har 2 daqiqada tekshirib turadi
+
 @app.post("/api/admin/refresh_phones")
 async def admin_refresh_phones(x_admin_token: str = Header(default="")):
     """Barcha ulangan foydalanuvchilar uchun telefon raqamlarini yangilaydi"""
@@ -2591,13 +2648,16 @@ async def main():
     # Bot ishga tushganda raqami yo'q foydalanuvchilarning raqamlarini avtomatik to'ldiramiz
     asyncio.create_task(auto_refresh_phones())
 
+    # Seanslar yaroqliligini tekshiruvchi fondagi loop
+    session_check_task = asyncio.create_task(session_checker_loop())
+
     # Aiogram bot va FastAPI parallel ishlatish
     config = uvicorn.Config(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)), log_level="warning")
     server = uvicorn.Server(config)
 
     # Graceful shutdown: SIGTERM va SIGINT uchun
     loop = asyncio.get_event_loop()
-    bg_tasks: list[asyncio.Task] = [monitoring_task, deferred_task]
+    bg_tasks: list[asyncio.Task] = [monitoring_task, deferred_task, session_check_task]
 
     async def _shutdown():
         logger.info("⏹ Graceful shutdown boshlandi...")

@@ -257,7 +257,7 @@
   <!-- Stats chips -->
   <div class="users-stats" id="users-stats-row" style="cursor:pointer; display:flex; gap:10px; margin-bottom: 12px; overflow-x: auto;">
     <div class="u-stat-chip chip-green" id="filter-connected" onclick="setAdminFilter('connected')" style="transition:0.2s;"><span>🟢</span> <span id="chip-connected">0</span> ulangan</div>
-    <div class="u-stat-chip chip-red" id="filter-disconnected" onclick="setAdminFilter('disconnected')" style="transition:0.2s;"><span>🔴</span> <span id="chip-disconnected">0</span> ulanmagan</div>
+    <div class="u-stat-chip chip-red" id="filter-disconnected" onclick="setAdminFilter('disconnected')" style="transition:0.2s;"><span>🔴</span> <span id="chip-disconnected">0</span> seans uzilgan</div>
     <div class="u-stat-chip chip-purple" id="filter-stealth" onclick="setAdminFilter('stealth')" style="transition:0.2s;"><span>🕵️</span> <span id="chip-stealth">0</span> stealth</div>
   </div>
 
@@ -503,7 +503,7 @@ function renderAdminUsers(users) {
     // Connection badge
     const connBadge = isConnected
       ? `<span class="connected-badge">🟢 Ulangan</span>`
-      : `<span class="disconnected-badge">🔴 Ulanmagan</span>`;
+      : `<span class="disconnected-badge">🔴 Seans uzilgan</span>`;
     
     // Stealth badge
     const stealthBadge = isStealth
