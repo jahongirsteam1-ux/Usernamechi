@@ -255,10 +255,10 @@
   </div>
   
   <!-- Stats chips -->
-  <div class="users-stats" id="users-stats-row">
-    <div class="u-stat-chip chip-green"><span>🟢</span> <span id="chip-connected">0</span> ulangan</div>
-    <div class="u-stat-chip chip-red"><span>🔴</span> <span id="chip-disconnected">0</span> ulanmagan</div>
-    <div class="u-stat-chip chip-purple"><span>🕵️</span> <span id="chip-stealth">0</span> stealth</div>
+  <div class="users-stats" id="users-stats-row" style="cursor:pointer; display:flex; gap:10px; margin-bottom: 12px; overflow-x: auto;">
+    <div class="u-stat-chip chip-green" id="filter-connected" onclick="setAdminFilter('connected')" style="transition:0.2s;"><span>🟢</span> <span id="chip-connected">0</span> ulangan</div>
+    <div class="u-stat-chip chip-red" id="filter-disconnected" onclick="setAdminFilter('disconnected')" style="transition:0.2s;"><span>🔴</span> <span id="chip-disconnected">0</span> ulanmagan</div>
+    <div class="u-stat-chip chip-purple" id="filter-stealth" onclick="setAdminFilter('stealth')" style="transition:0.2s;"><span>🕵️</span> <span id="chip-stealth">0</span> stealth</div>
   </div>
 
   <!-- Search -->
@@ -521,7 +521,7 @@ function renderAdminUsers(users) {
       <div class="user-info">
         <div class="u-name">${nameLink}</div>
         ${u.username ? `<div class="u-username">@${u.username} · ID: ${u.telegram_id}</div>` : `<div class="u-username">ID: ${u.telegram_id}</div>`}
-        ${u.phone ? `<div class="u-phone">📱 +${u.phone}</div>` : ''}
+        ${u.phone ? `<div class="u-phone" style="color:var(--text); font-size:12px; margin-top:4px;">📱 +${u.phone.replace('+','')}</div>` : '<div class="u-phone" style="color:var(--muted); font-size:12px; margin-top:4px;">📱 Raqam yo\'q</div>'}
         <div class="u-bal">💰 <b>${(u.balance||0).toLocaleString()}</b> so'm</div>
         <div class="u-status" style="margin-top:5px;">
           ${connBadge}
@@ -539,19 +539,47 @@ function renderAdminUsers(users) {
   }).join('');
 }
 
+let activeUserFilter = null; // null, 'connected', 'disconnected', 'stealth'
+
+function setAdminFilter(filterType) {
+  if (activeUserFilter === filterType) {
+    activeUserFilter = null; // Toggle off
+  } else {
+    activeUserFilter = filterType;
+  }
+  
+  // Update UI for filters
+  document.getElementById('filter-connected').style.opacity = (activeUserFilter === null || activeUserFilter === 'connected') ? '1' : '0.4';
+  document.getElementById('filter-disconnected').style.opacity = (activeUserFilter === null || activeUserFilter === 'disconnected') ? '1' : '0.4';
+  document.getElementById('filter-stealth').style.opacity = (activeUserFilter === null || activeUserFilter === 'stealth') ? '1' : '0.4';
+  
+  filterAdminUsers();
+}
+
 function filterAdminUsers() {
   const query = (document.getElementById('user-search-input').value || '').toLowerCase().trim();
-  if (!query) {
-    renderAdminUsers(allUsersData);
-    return;
-  }
+  
   const filtered = allUsersData.filter(u => {
+    // Text search
     const name = (u.first_name || '').toLowerCase();
     const uname = (u.username || '').toLowerCase();
     const tid = String(u.telegram_id);
     const phone = (u.phone || '').toLowerCase();
-    return name.includes(query) || uname.includes(query) || tid.includes(query) || phone.includes(query);
+    const matchesQuery = !query || name.includes(query) || uname.includes(query) || tid.includes(query) || phone.includes(query);
+    
+    // Status filter
+    let matchesStatus = true;
+    if (activeUserFilter === 'connected') {
+      matchesStatus = !!u.session_string;
+    } else if (activeUserFilter === 'disconnected') {
+      matchesStatus = !u.session_string;
+    } else if (activeUserFilter === 'stealth') {
+      matchesStatus = u.is_stealth === 1;
+    }
+    
+    return matchesQuery && matchesStatus;
   });
+  
   renderAdminUsers(filtered);
 }
 
