@@ -6,6 +6,7 @@
 <title>Usernamechi</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #07070c;
@@ -174,17 +175,26 @@
   /* 3D ANIMATED ICONS & SHIMMER */
   .icon-3d {
     display: inline-block;
+    font-family: 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji', 'Twemoji Mozilla', sans-serif;
     animation: float3d 3.5s ease-in-out infinite alternate;
     filter: drop-shadow(0 8px 16px rgba(139, 92, 246, 0.4));
     transform-style: preserve-3d;
     perspective: 500px;
     will-change: transform;
+    font-style: normal;
+    line-height: 1;
   }
   .icon-3d-fast {
     animation-duration: 2.2s;
   }
   .icon-3d-pulse {
     animation: pulse3d 2.5s ease-in-out infinite alternate;
+  }
+  /* Barcha standalone emoji'lar uchun */
+  .emoji {
+    font-family: 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji', 'Twemoji Mozilla', sans-serif;
+    font-style: normal;
+    display: inline-block;
   }
 
   @keyframes float3d {
