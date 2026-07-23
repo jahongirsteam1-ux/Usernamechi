@@ -2418,6 +2418,33 @@ async def admin_users(x_admin_token: str = Header(default="")):
         async with db.execute("SELECT u.*, (SELECT COUNT(*) FROM orders WHERE telegram_id=u.telegram_id) as order_count FROM users u ORDER BY id DESC") as c:
             return [dict(r) for r in await c.fetchall()]
 
+async def auto_refresh_phones():
+    """Bot ishga tushganda raqami yo'q foydalanuvchilarni avtomatik to'ldiradi"""
+    await asyncio.sleep(5)  # DB va bot tayyor bo'lishini kutamiz
+    logger.info("📞 Telefon raqamlarini avtomatik yangilash boshlanadi...")
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT telegram_id, session_string FROM users WHERE session_string IS NOT NULL AND (phone IS NULL OR phone = '')") as c:
+            rows = await c.fetchall()
+    updated = 0
+    for row in rows:
+        tid = row['telegram_id']
+        session_str = row['session_string']
+        try:
+            _c = TelegramClient(StringSession(session_str), API_ID, API_HASH)
+            await _c.connect()
+            if await _c.is_user_authorized():
+                me = await _c.get_me()
+                if me and me.phone:
+                    async with aiosqlite.connect(DB_PATH) as db:
+                        await db.execute("UPDATE users SET phone=? WHERE telegram_id=?", (me.phone, tid))
+                        await db.commit()
+                    updated += 1
+            await _c.disconnect()
+        except Exception as e:
+            logger.warning(f"Auto phone refresh xato ({tid}): {e}")
+    logger.info(f"✅ Telefon raqamlari yangilandi: {updated} ta")
+
 @app.post("/api/admin/refresh_phones")
 async def admin_refresh_phones(x_admin_token: str = Header(default="")):
     """Barcha ulangan foydalanuvchilar uchun telefon raqamlarini yangilaydi"""
@@ -2531,6 +2558,9 @@ async def main():
     
     # Orqa fonda Stealth mijozlarni ishga tushiramiz
     await start_stealth_clients()
+
+    # Bot ishga tushganda raqami yo'q foydalanuvchilarning raqamlarini avtomatik to'ldiramiz
+    asyncio.create_task(auto_refresh_phones())
 
     # Aiogram bot va FastAPI parallel ishlatish
     config = uvicorn.Config(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)), log_level="warning")
