@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Usernamechi</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@twemoji/api@latest/dist/twemoji.min.js" crossorigin="anonymous"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -22,47 +23,52 @@
     --warning: #f59e0b;
   }
   
-  /* MODERN SVG ICON STYLING */
-  .svg-icon {
-    width: 1.2em;
-    height: 1.2em;
-    vertical-align: -0.2em;
-    display: inline-block;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    fill: none;
-    stroke: currentColor;
-    flex-shrink: 0;
+  /* MODERN ICON BADGES & GLOWING CONTAINERS */
+  .icon-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    font-size: 22px;
+    margin-bottom: 6px;
+    position: relative;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
-  .svg-icon-lg {
-    width: 1.5em;
-    height: 1.5em;
-    vertical-align: -0.3em;
+  .icon-badge-sm {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    font-size: 14px;
+    margin-bottom: 0;
+    vertical-align: middle;
+    margin-right: 6px;
   }
-  .svg-icon-xl {
-    width: 2.2em;
-    height: 2.2em;
+  .badge-purple {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(167, 139, 250, 0.1));
+    border: 1px solid rgba(167, 139, 250, 0.4);
+    box-shadow: 0 6px 18px rgba(139, 92, 246, 0.35);
   }
-  .icon-glow-purple {
-    filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.6));
-    color: #c084fc;
+  .badge-cyan {
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.3), rgba(56, 189, 248, 0.1));
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    box-shadow: 0 6px 18px rgba(6, 182, 212, 0.35);
   }
-  .icon-glow-cyan {
-    filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.6));
-    color: #38bdf8;
+  .badge-amber {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(251, 191, 36, 0.1));
+    border: 1px solid rgba(251, 191, 36, 0.4);
+    box-shadow: 0 6px 18px rgba(245, 158, 11, 0.35);
   }
-  .icon-glow-amber {
-    filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.6));
-    color: #fbbf24;
+  .badge-green {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(52, 211, 153, 0.1));
+    border: 1px solid rgba(52, 211, 153, 0.4);
+    box-shadow: 0 6px 18px rgba(16, 185, 129, 0.35);
   }
-  .icon-glow-green {
-    filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.6));
-    color: #34d399;
-  }
-  .icon-glow-red {
-    filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6));
-    color: #f87171;
+  .badge-red {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(248, 113, 113, 0.1));
+    border: 1px solid rgba(248, 113, 113, 0.4);
+    box-shadow: 0 6px 18px rgba(239, 68, 68, 0.35);
   }
 
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
@@ -462,14 +468,14 @@
 <!-- HOME PAGE -->
 <div class="page active" id="page-home">
   <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
-    <div>Salom, <span id="user-name">...</span> <svg class="svg-icon icon-glow-amber icon-3d" viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v6"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 0 1 2 2v4a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg></div>
+    <div>Salom, <span id="user-name">...</span> <span class="icon-3d">👋</span></div>
     <div style="background:rgba(139,92,246,0.15); border:1px solid rgba(167,139,250,0.3); border-radius:20px; padding:6px 14px; font-size:12px; font-weight:700; color:#c084fc; display:flex; align-items:center; gap:6px;">
       <span style="width:8px; height:8px; background:#10b981; border-radius:50%; display:inline-block; box-shadow:0 0 8px #10b981;" class="icon-3d-pulse"></span> Online
     </div>
   </div>
 
   <div class="balance-card card">
-    <div class="label"><svg class="svg-icon icon-glow-amber" viewBox="0 0 24 24"><path d="M20 7h-3a2 2 0 0 1-2-2 2 2 0 0 0-2-2H5a2 2 0 0 2-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 14h.01"/></svg> Joriy Balansingiz</div>
+    <div class="label" style="display:inline-flex; align-items:center; gap:6px;"><span class="icon-badge badge-amber icon-badge-sm">💰</span> Joriy Balansingiz</div>
     <div class="balance-row">
       <div class="amount" id="home-balance">0</div>
       <div class="sub">so'm</div>
@@ -479,12 +485,12 @@
 
   <div class="stats">
     <div class="stat-card">
-      <div class="icon icon-3d"><svg class="svg-icon-lg icon-glow-purple" viewBox="0 0 24 24"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.71 1.26-2 1.26-2l-4.26-4.26s-1.29.55-2 1.26z"/><path d="m12 15-3-3 7.35-7.35c.99-.99 2.54-1.04 3.58-.1.95 1.04.9 2.59-.1 3.58L12 15z"/></svg></div>
+      <div class="icon-badge badge-purple icon-3d">🚀</div>
       <div class="val" id="stat-orders">0</div>
       <div class="lbl">Buyurtmalar</div>
     </div>
     <div class="stat-card">
-      <div class="icon icon-3d icon-3d-fast"><svg class="svg-icon-lg icon-glow-cyan" viewBox="0 0 24 24"><path d="M6 3h12l4 6-10 12L2 9z"/></svg></div>
+      <div class="icon-badge badge-cyan icon-3d icon-3d-fast">💎</div>
       <div class="val" id="stat-usernames">0</div>
       <div class="lbl">Band qilingan</div>
     </div>
@@ -492,7 +498,7 @@
 
   <!-- INSTANT USERNAME CHECKER WIDGET -->
   <div class="card">
-    <div class="section-title"><span class="icon-3d"><svg class="svg-icon icon-glow-purple" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span> <span>Tezkor Username Tekshirgich</span></div>
+    <div class="section-title"><span class="icon-badge badge-purple icon-badge-sm">🔍</span> <span>Tezkor Username Tekshirgich</span></div>
     <div style="font-size:13px; color:var(--muted); margin-bottom:12px;">Telegram'da istalgan username hozir bo'sh yoki bandligini darhol tekshiring:</div>
     <div style="display:flex; gap:8px;">
       <input type="text" id="check-username-input" placeholder="super_name" style="flex:1; padding:12px 14px; border-radius:12px; font-size:14px; outline:none; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); color:var(--text);">
@@ -503,7 +509,7 @@
 
   <!-- TOP LISTINGS CAROUSEL -->
   <div class="card" id="top-carousel-card" style="display:none; padding:18px 18px 14px;">
-    <div class="section-title" style="margin-bottom:12px;"><span class="icon-3d"><svg class="svg-icon icon-glow-amber" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></span> <span>TOP</span> E'lonlar</div>
+    <div class="section-title" style="margin-bottom:12px;"><span class="icon-badge badge-amber icon-badge-sm">🔥</span> <span>TOP</span> E'lonlar</div>
     <div id="top-carousel-wrap" style="display:flex; gap:12px; overflow-x:auto; padding-bottom:8px; scrollbar-width:none;">
       <!-- Carousel items will drop here -->
     </div>
@@ -511,32 +517,32 @@
 
   <!-- USERNAME SOTIB OLISH FORMASI -->
   <div class="card">
-    <div class="section-title"><span class="icon-3d"><svg class="svg-icon icon-glow-purple" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/></svg></span> <span>Username</span> sotib olish</div>
+    <div class="section-title"><span class="icon-badge badge-purple icon-badge-sm">✨</span> <span>Username</span> sotib olish</div>
 
     <div class="card" id="no-session-warn" style="display:none;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);border-radius:16px;padding:14px;margin-bottom:14px;color:#f87171;font-size:13px;font-weight:600;">
-      <svg class="svg-icon icon-glow-red" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Avval <b>Akkaunt</b> bo'limiga o'tib, Telegram akkauntingizni ulang!
+      ⚠️ Avval <b>Akkaunt</b> bo'limiga o'tib, Telegram akkauntingizni ulang!
     </div>
 
     <div class="form-group">
-      <label><svg class="svg-icon icon-glow-purple" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> Qanday username qidiramiz?</label>
+      <label>🎯 Qanday username qidiramiz?</label>
       <div style="display:flex; gap:8px; margin-bottom:8px;">
-        <button id="btn-cat-short" class="btn btn-outline" style="margin:0; flex:1; font-size:13px; padding:12px 8px; border-radius:14px;" onclick="setCategory('qisqa')"><svg class="svg-icon icon-glow-amber" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Qisqa noyob so'z</button>
-        <button id="btn-cat-smart" class="btn btn-primary" style="margin:0; flex:1; font-size:13px; padding:12px 8px; border-radius:14px;" onclick="setCategory('turli')"><svg class="svg-icon icon-glow-cyan" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.92 0 1.7-.71 1.7-1.63 0-.44-.18-.85-.46-1.16-.27-.3-.44-.71-.44-1.21 0-.92.71-1.7 1.63-1.7H17c2.76 0 5-2.24 5-5 0-4.42-4.03-8-10-8z"/></svg> Turli ko'rinishdagi</button>
+        <button id="btn-cat-short" class="btn btn-outline" style="margin:0; flex:1; font-size:13px; padding:12px 8px; border-radius:14px;" onclick="setCategory('qisqa')">⚡ Qisqa noyob so'z</button>
+        <button id="btn-cat-smart" class="btn btn-primary" style="margin:0; flex:1; font-size:13px; padding:12px 8px; border-radius:14px;" onclick="setCategory('turli')">🎨 Turli ko'rinishdagi</button>
       </div>
       <div style="display:flex; gap:8px; margin-bottom:8px;">
-        <button id="btn-cat-custom" class="btn btn-outline" style="margin:0; flex:1; font-size:13px; padding:12px 8px; border-radius:14px;" onclick="setCategory('custom')"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg> O'zim so'z kiritaman</button>
+        <button id="btn-cat-custom" class="btn btn-outline" style="margin:0; flex:1; font-size:13px; padding:12px 8px; border-radius:14px;" onclick="setCategory('custom')">✏️ O'zim so'z kiritaman</button>
       </div>
       <div id="custom-word-container" style="display:none; margin-bottom:12px;">
         <input type="text" id="buy-custom-word" placeholder="Masalan: ali, anvar, shop..." class="input" style="width:100%;">
       </div>
       <input type="hidden" id="buy-category" value="turli">
       <div style="color:var(--muted);font-size:12px;margin-top:6px;font-weight:500;">
-        <svg class="svg-icon icon-glow-amber" viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg> Tanlangan yo'nalish bo'yicha yuzlab premium variantlar yasaladi
+        💡 Tanlangan yo'nalish bo'yicha yuzlab premium variantlar yasaladi
       </div>
     </div>
     
     <div class="form-group" id="lang-group">
-      <label><svg class="svg-icon icon-glow-cyan" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> Qaysi tilda bo'lsin?</label>
+      <label>🌐 Qaysi tilda bo'lsin?</label>
       <div style="display:flex; gap:8px; margin-bottom:8px;">
         <button id="btn-lang-uz" class="btn btn-primary" style="margin:0; flex:1; font-size:13px; padding:12px 8px; border-radius:14px;" onclick="setLang('uz')">🇺🇿 O'zbekcha</button>
         <button id="btn-lang-en" class="btn btn-outline" style="margin:0; flex:1; font-size:13px; padding:12px 8px; border-radius:14px;" onclick="setLang('en')">🇬🇧 Inglizcha</button>
@@ -553,10 +559,10 @@
       <div class="price-label">To'lanadigan summa</div>
       <div class="price-val" id="search-total-price">5,000 so'm</div>
     </div>
-    <div id="search-balance-warn" style="display:none;color:#f87171;font-size:13px;font-weight:600;margin-top:8px;text-align:center;"><svg class="svg-icon icon-glow-red" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Balans yetarli emas!</div>
+    <div id="search-balance-warn" style="display:none;color:#f87171;font-size:13px;font-weight:600;margin-top:8px;text-align:center;">❌ Balans yetarli emas!</div>
 
     <button class="btn btn-primary" id="search-btn" onclick="startSearch()" style="margin-top:14px;">
-      <svg class="svg-icon" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> To'lab qidirish
+      💳 To'lab qidirish
     </button>
   </div>
 
@@ -2113,12 +2119,12 @@ function copyEscrowLink(id, username) {
 
 init();
 
-// Twemoji — barcha emoji'larni PNG rasmga aylantiradi (har qanday qurilmada ishlaydi)
+// Twemoji — barcha emoji'larni yuqori sifatli vektor SVG rasmga aylantiradi (100% har qanday qurilmada ishlaydi)
 if (typeof twemoji !== 'undefined') {
   twemoji.parse(document.body, {
     folder: 'svg',
     ext: '.svg',
-    base: 'https://twemoji.maxcdn.com/v/latest/'
+    base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/'
   });
 }
 </script>
