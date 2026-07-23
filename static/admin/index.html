@@ -251,7 +251,10 @@
 <div class="page" id="page-users">
   <div class="page-title" style="display:flex; justify-content:space-between; align-items:center;">
     <div>👥 <span>Foydalanuvchilar</span></div>
-    <div class="u-stat-chip chip-purple" id="users-count-badge" style="font-size:11px;">0 ta</div>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <button onclick="refreshPhones()" style="background:rgba(6,182,212,0.15); color:#22d3ee; border:1px solid rgba(6,182,212,0.3); border-radius:8px; padding:6px 10px; font-size:11px; cursor:pointer; font-weight:600;">🔄 Raqamlar</button>
+      <div class="u-stat-chip chip-purple" id="users-count-badge" style="font-size:11px;">0 ta</div>
+    </div>
   </div>
   
   <!-- Stats chips -->
@@ -605,6 +608,20 @@ async function toggleStealth(telegramId) {
 
 function openEditBalance(id, telegramId, currentBal) { document.getElementById('edit-user-id').value = telegramId; document.getElementById('edit-amount').value = currentBal; document.getElementById('edit-modal').classList.add('open'); }
 function closeModal() { document.getElementById('edit-modal').classList.remove('open'); }
+
+async function refreshPhones() {
+  showToast('⏳ Raqamlar yangilanmoqda...');
+  try {
+    const res = await fetch('/api/admin/refresh_phones', {method:'POST', headers: h()});
+    const d = await res.json();
+    if (d.ok) {
+      showToast(`✅ ${d.updated} ta raqam yangilandi`, 'success');
+      loadUsers();
+    } else {
+      showToast('Xato yuz berdi', 'error');
+    }
+  } catch(e) { showToast('Xato', 'error'); }
+}
 
 async function saveBalance() {
   const tid = document.getElementById('edit-user-id').value;

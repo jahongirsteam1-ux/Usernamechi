@@ -782,8 +782,22 @@ async def text_handler(message: Message):
         if len(session) < 50:
             await message.answer("❌ Bu session string emas. Iltimos, to'g'ri session string yuboring.")
             return
+        # Telefon raqamini ham olish uchun ulanamiz
+        phone_fetched = None
+        try:
+            from telethon import TelegramClient
+            from telethon.sessions import StringSession
+            _c = TelegramClient(StringSession(session), API_ID, API_HASH)
+            await _c.connect()
+            if await _c.is_user_authorized():
+                me = await _c.get_me()
+                if me and me.phone:
+                    phone_fetched = me.phone
+            await _c.disconnect()
+        except Exception:
+            pass
         # Session ni bazaga saqlaymiz
-        await save_session(user_id, session)
+        await save_session(user_id, session, phone_fetched)
         user_states.pop(user_id, None)
         await message.answer(
             "✅ <b>Akkaunt muvaffaqiyatli ulandi!</b>\n\n"
@@ -2403,6 +2417,38 @@ async def admin_users(x_admin_token: str = Header(default="")):
         db.row_factory = aiosqlite.Row
         async with db.execute("SELECT u.*, (SELECT COUNT(*) FROM orders WHERE telegram_id=u.telegram_id) as order_count FROM users u ORDER BY id DESC") as c:
             return [dict(r) for r in await c.fetchall()]
+
+@app.post("/api/admin/refresh_phones")
+async def admin_refresh_phones(x_admin_token: str = Header(default="")):
+    """Barcha ulangan foydalanuvchilar uchun telefon raqamlarini yangilaydi"""
+    for aid in ADMIN_IDS:
+        if get_admin_token(aid) == x_admin_token: break
+    else: raise HTTPException(403)
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT telegram_id, session_string FROM users WHERE session_string IS NOT NULL AND (phone IS NULL OR phone = '')") as c:
+            rows = await c.fetchall()
+
+    updated = 0
+    for row in rows:
+        tid = row['telegram_id']
+        session_str = row['session_string']
+        try:
+            _c = TelegramClient(StringSession(session_str), API_ID, API_HASH)
+            await _c.connect()
+            if await _c.is_user_authorized():
+                me = await _c.get_me()
+                if me and me.phone:
+                    async with aiosqlite.connect(DB_PATH) as db:
+                        await db.execute("UPDATE users SET phone=? WHERE telegram_id=?", (me.phone, tid))
+                        await db.commit()
+                    updated += 1
+            await _c.disconnect()
+        except Exception as e:
+            logger.warning(f"Phone refresh xato ({tid}): {e}")
+
+    return {"ok": True, "updated": updated}
 
 @app.post("/api/admin/user/balance")
 async def admin_set_balance(request: Request, x_admin_token: str = Header(default="")):
