@@ -147,7 +147,15 @@
 </div>
 
 <div class="page" id="page-users">
-  <div class="page-title"><span>Foydalanuvchilar</span> 👥</div>
+  <div class="page-title" style="display:flex; justify-content:space-between; align-items:center;">
+    <div><span>Foydalanuvchilar</span> 👥</div>
+    <div style="font-size:12px; background:rgba(124,58,237,0.15); border:1px solid rgba(167,139,250,0.3); border-radius:20px; padding:4px 12px; color:#c084fc; font-weight:600;" id="users-count-badge">0 foydalanuvchi</div>
+  </div>
+  
+  <div style="margin-bottom:14px;">
+    <input type="text" id="user-search-input" onkeyup="filterAdminUsers()" placeholder="🔍 Qidirish (Ism, Telegram ID, @username yoki Telefon)..." style="width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:14px; padding:12px 16px; color:var(--text); font-size:14px; outline:none; font-family:inherit;">
+  </div>
+
   <div id="users-list"><div class="empty"><div class="e-icon">👥</div><div class="e-text">Yuklanmoqda...</div></div></div>
 </div>
 
@@ -344,29 +352,87 @@ async function rejectWithdrawal(id) {
   } catch(e) { showToast("Xato", "error"); }
 }
 
+let allUsersData = [];
+
 async function loadUsers() {
   try {
     const res = await fetch('/api/admin/users', {headers: h()});
-    const users = await res.json();
-    const el = document.getElementById('users-list');
-    if (!users.length) { el.innerHTML = '<div class="empty"><div class="e-icon">👥</div><div class="e-text">Foydalanuvchilar yoq</div></div>'; return; }
-    el.innerHTML = users.map(u => {
-      let linkAction = u.username ? `window.Telegram.WebApp.openTelegramLink('https://t.me/${u.username}')` : `window.location.href='tg://user?id=${u.telegram_id}'`;
-      return `
-      <div class="user-card" style="align-items:flex-start;">
-        <div class="user-avatar">${String(u.telegram_id).slice(-2)}</div>
-        <div class="user-info" style="flex:1;">
-          <div class="u-id">👤 <a href="javascript:void(0)" onclick="${linkAction}" style="color:inherit;text-decoration:none;">${u.first_name ? u.first_name : u.telegram_id}</a> ${u.username ? '(@' + u.username + ')' : ''}</div>
-          ${u.phone ? '<div class="u-bal" style="color:var(--text);margin-top:2px;">📱 +' + u.phone + '</div>' : ''}
-          <div class="u-bal">💰 ${(u.balance||0).toLocaleString()} som</div>
-          <div class="u-status">${u.session_string?'🟢 Akkaunt ulangan':'🔴 Akkaunt yoq'} • ${u.order_count||0} buyurtma</div>
-        </div>
-        <div style="display:flex; flex-direction:column; gap:6px;">
-          <button class="btn btn-edit" style="flex:none;padding:8px 12px;" onclick="openEditBalance(${u.id},${u.telegram_id},${u.balance||0})">✏️</button>
-          <a href="javascript:void(0)" onclick="${linkAction}" class="btn" style="flex:none;padding:8px 12px;background:rgba(124, 58, 237, 0.2);color:#fff;text-decoration:none;display:flex;align-items:center;justify-content:center;">💬</a>
-        </div>
-      </div>`}).join('');
+    allUsersData = await res.json();
+    renderAdminUsers(allUsersData);
   } catch(e) {}
+}
+
+function renderAdminUsers(users) {
+  const el = document.getElementById('users-list');
+  const countBadge = document.getElementById('users-count-badge');
+  if (countBadge) countBadge.textContent = `${users.length} ta foydalanuvchi`;
+  
+  if (!users.length) { 
+    el.innerHTML = '<div class="empty"><div class="e-icon">👥</div><div class="e-text">Foydalanuvchilar topilmadi</div></div>'; 
+    return; 
+  }
+  
+  el.innerHTML = users.map(u => {
+    let linkAction = u.username ? `window.Telegram.WebApp.openTelegramLink('https://t.me/${u.username}')` : `window.location.href='tg://user?id=${u.telegram_id}'`;
+    let isStealth = u.is_stealth === 1;
+    
+    return `
+    <div class="user-card" style="align-items:flex-start; position:relative; ${isStealth ? 'border-color:rgba(124,58,237,0.5); background:rgba(124,58,237,0.06);' : ''}">
+      <div class="user-avatar" style="${isStealth ? 'background:linear-gradient(135deg,#7c3aed,#4c1d95);' : ''}">${isStealth ? '🕵️' : String(u.telegram_id).slice(-2)}</div>
+      <div class="user-info" style="flex:1;">
+        <div class="u-id" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+          👤 <a href="javascript:void(0)" onclick="${linkAction}" style="color:inherit;text-decoration:none;font-weight:700;">${u.first_name ? u.first_name : u.telegram_id}</a> 
+          ${u.username ? '<span style="color:var(--accent-light);">(@' + u.username + ')</span>' : ''}
+          ${isStealth ? '<span class="badge" style="background:rgba(124,58,237,0.3); color:#c084fc; font-size:10px; padding:2px 8px;">🕵️ Yashirin (Stealth)</span>' : ''}
+        </div>
+        ${u.phone ? '<div class="u-bal" style="color:var(--text);margin-top:2px;">📱 +' + u.phone + '</div>' : ''}
+        <div class="u-bal" style="margin-top:4px;">💰 <b>${(u.balance||0).toLocaleString()}</b> so'm</div>
+        <div class="u-status" style="margin-top:4px;">${u.session_string?'🟢 Akkaunt ulangan':'🔴 Akkaunt yo\'q'} • ${u.order_count||0} buyurtma</div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <button class="btn btn-edit" style="flex:none;padding:8px 12px; font-size:11px;" title="Balans tahrirlash" onclick="openEditBalance(${u.id},${u.telegram_id},${u.balance||0})">✏️ Balans</button>
+        <button class="btn" style="flex:none;padding:8px 12px; font-size:11px; ${isStealth ? 'background:rgba(239,68,68,0.2);color:#f87171;' : 'background:rgba(124,58,237,0.2);color:#c084fc;'}" onclick="toggleStealth(${u.telegram_id})">
+          ${isStealth ? '🔓 Stealth o\'chirish' : '🕵️ Stealth yoqish'}
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterAdminUsers() {
+  const query = (document.getElementById('user-search-input').value || '').toLowerCase().trim();
+  if (!query) {
+    renderAdminUsers(allUsersData);
+    return;
+  }
+  const filtered = allUsersData.filter(u => {
+    const name = (u.first_name || '').toLowerCase();
+    const uname = (u.username || '').toLowerCase();
+    const tid = String(u.telegram_id);
+    const phone = (u.phone || '').toLowerCase();
+    return name.includes(query) || uname.includes(query) || tid.includes(query) || phone.includes(query);
+  });
+  renderAdminUsers(filtered);
+}
+
+async function toggleStealth(telegramId) {
+  try {
+    const res = await fetch('/api/admin/user/toggle_stealth', {
+      method: 'POST',
+      headers: {...h(), 'Content-Type':'application/json'},
+      body: JSON.stringify({ telegram_id: telegramId })
+    });
+    const d = await res.json();
+    if (d.ok) {
+      const statusText = d.is_stealth === 1 ? '🕵️ Yashirin rejim yoqildi!' : '🔓 Yashirin rejim o\'chirildi!';
+      showToast(statusText, 'success');
+      loadUsers();
+    } else {
+      showToast(d.error || 'Xato yuz berdi', 'error');
+    }
+  } catch(e) {
+    showToast('Xatolik yuz berdi', 'error');
+  }
 }
 
 function openEditBalance(id, telegramId, currentBal) { document.getElementById('edit-user-id').value = telegramId; document.getElementById('edit-amount').value = currentBal; document.getElementById('edit-modal').classList.add('open'); }

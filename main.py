@@ -81,7 +81,7 @@ async def init_db():
         except Exception: pass
         try: await db.execute("ALTER TABLE users ADD COLUMN phone TEXT")
         except Exception: pass
-        try: await db.execute("ALTER TABLE users ADD COLUMN seller_balance INTEGER DEFAULT 0")
+        try: await db.execute("ALTER TABLE users ADD COLUMN is_stealth INTEGER DEFAULT 0")
         except Exception: pass
         try: await db.execute("ALTER TABLE users ADD COLUMN is_premium INTEGER DEFAULT 0")
         except Exception: pass
@@ -2319,6 +2319,24 @@ async def admin_set_balance(request: Request, x_admin_token: str = Header(defaul
         await bot_instance.session.close()
 
     return {"ok": True}
+
+@app.post("/api/admin/user/toggle_stealth")
+async def admin_toggle_stealth(request: Request, x_admin_token: str = Header(default="")):
+    for aid in ADMIN_IDS:
+        if get_admin_token(aid) == x_admin_token: break
+    else: raise HTTPException(403)
+    data = await request.json()
+    tid = data.get('telegram_id')
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT is_stealth FROM users WHERE telegram_id=?", (tid,)) as c:
+            row = await c.fetchone()
+            if not row:
+                raise HTTPException(444, "Foydalanuvchi topilmadi")
+            curr = row[0] or 0
+            new_val = 1 if curr == 0 else 0
+        await db.execute("UPDATE users SET is_stealth=? WHERE telegram_id=?", (new_val, tid))
+        await db.commit()
+    return {"ok": True, "is_stealth": new_val}
 
 @app.get("/api/admin/orders")
 async def admin_orders(x_admin_token: str = Header(default="")):
