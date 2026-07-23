@@ -660,17 +660,6 @@ async def save_session(telegram_id, session_string, phone=None):
             await db.execute("UPDATE users SET session_string=? WHERE telegram_id=?", (session_string, telegram_id))
         await db.commit()
 
-@router.message(F.photo)
-async def photo_handler(message: Message):
-    tid = message.from_user.id
-    photo_id = message.photo[-1].file_id
-    
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("INSERT INTO payments (telegram_id, photo_id) VALUES (?, ?)", (tid, photo_id))
-        await db.commit()
-    
-    await message.answer("✅ To'lov cheki qabul qilindi! Adminlar tekshirgach balansingizga pul qo'shiladi.")
-
 @router.message(F.text)
 async def text_handler(message: Message):
     user_id = message.from_user.id
