@@ -43,12 +43,114 @@
   .payment-card .p-amount { font-size:20px; font-weight:800; color:var(--success); margin-bottom:8px; }
   .payment-card .p-date { color:var(--muted); font-size:11px; margin-bottom:12px; }
   .payment-card .p-actions { display:flex; gap:8px; }
-  .user-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:10px; display:flex; align-items:center; gap:12px; }
-  .user-avatar { width:44px; height:44px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#7c3aed,#06b6d4); display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; }
-  .user-info { flex:1; min-width:0; }
-  .user-info .u-id { font-size:13px; font-weight:600; }
-  .user-info .u-bal { color:var(--accent2); font-size:12px; margin-top:2px; }
-  .user-info .u-status { font-size:11px; color:var(--muted); margin-top:2px; }
+  .user-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 18px;
+    padding: 16px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .user-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(167,139,250,0.3), transparent);
+  }
+  .user-card:hover { border-color: rgba(124,58,237,0.3); box-shadow: 0 4px 20px rgba(124,58,237,0.1); }
+  .user-card.stealth-card {
+    border-color: rgba(124,58,237,0.4);
+    background: rgba(124,58,237,0.06);
+    box-shadow: 0 4px 20px rgba(124,58,237,0.12), inset 0 0 30px rgba(124,58,237,0.04);
+  }
+  .user-avatar {
+    width: 48px; height: 48px;
+    border-radius: 14px;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #7c3aed, #06b6d4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 800;
+    box-shadow: 0 4px 14px rgba(124,58,237,0.4);
+    letter-spacing: -0.5px;
+  }
+  .user-avatar.stealth-avatar {
+    background: linear-gradient(135deg, #4c1d95, #7c3aed);
+    box-shadow: 0 4px 14px rgba(124,58,237,0.6);
+    font-size: 22px;
+  }
+  .user-info { flex: 1; min-width: 0; }
+  .user-info .u-name { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+  .user-info .u-username { color: #a78bfa; font-size: 12px; font-weight: 500; }
+  .user-info .u-bal { color: #34d399; font-size: 13px; font-weight: 700; margin-top: 5px; }
+  .user-info .u-status { font-size: 11px; color: var(--muted); margin-top: 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .user-info .u-phone { color: rgba(255,255,255,0.6); font-size: 12px; margin-top: 3px; }
+  .u-action-col { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; flex-shrink: 0; }
+  .btn-action {
+    border: none; border-radius: 10px;
+    padding: 7px 12px;
+    font-size: 11px; font-weight: 600;
+    cursor: pointer; white-space: nowrap;
+    transition: all 0.2s;
+    font-family: 'Inter', sans-serif;
+  }
+  .btn-action:active { transform: scale(0.96); }
+  .btn-balance { background: rgba(124,58,237,0.2); color: #c084fc; border: 1px solid rgba(124,58,237,0.3); }
+  .btn-balance:hover { background: rgba(124,58,237,0.35); }
+  .btn-stealth-on { background: rgba(124,58,237,0.18); color: #a78bfa; border: 1px solid rgba(124,58,237,0.3); }
+  .btn-stealth-on:hover { background: rgba(124,58,237,0.32); }
+  .btn-stealth-off { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+  .btn-stealth-off:hover { background: rgba(239,68,68,0.28); }
+  .stealth-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: rgba(124,58,237,0.25);
+    border: 1px solid rgba(167,139,250,0.4);
+    border-radius: 20px; padding: 3px 10px;
+    font-size: 10px; font-weight: 700; color: #c084fc;
+    animation: stealth-pulse 2s infinite;
+  }
+  @keyframes stealth-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(124,58,237,0.4); }
+    50% { box-shadow: 0 0 0 4px rgba(124,58,237,0); }
+  }
+  .connected-badge { display: inline-flex; align-items: center; gap: 3px; background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); border-radius: 20px; padding: 2px 8px; font-size: 10px; font-weight: 600; color: #34d399; }
+  .disconnected-badge { display: inline-flex; align-items: center; gap: 3px; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); border-radius: 20px; padding: 2px 8px; font-size: 10px; font-weight: 600; color: #f87171; }
+  .user-search {
+    width: 100%;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px;
+    padding: 13px 16px;
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    font-family: 'Inter', sans-serif;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    margin-bottom: 14px;
+  }
+  .user-search:focus { border-color: rgba(124,58,237,0.5); box-shadow: 0 0 0 3px rgba(124,58,237,0.12); }
+  .users-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 16px;
+  }
+  .users-stats {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;
+  }
+  .u-stat-chip {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px; padding: 5px 12px;
+    font-size: 11px; font-weight: 600; color: var(--muted);
+    display: flex; align-items: center; gap: 5px;
+  }
+  .u-stat-chip.chip-purple { border-color: rgba(124,58,237,0.3); color: #c084fc; background: rgba(124,58,237,0.1); }
+  .u-stat-chip.chip-green { border-color: rgba(16,185,129,0.3); color: #34d399; background: rgba(16,185,129,0.08); }
+  .u-stat-chip.chip-red { border-color: rgba(239,68,68,0.3); color: #f87171; background: rgba(239,68,68,0.08); }
   .order-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:10px; }
   .order-card .o-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
   .order-card .o-cat { font-weight:700; font-size:14px; }
@@ -148,13 +250,19 @@
 
 <div class="page" id="page-users">
   <div class="page-title" style="display:flex; justify-content:space-between; align-items:center;">
-    <div><span>Foydalanuvchilar</span> 👥</div>
-    <div style="font-size:12px; background:rgba(124,58,237,0.15); border:1px solid rgba(167,139,250,0.3); border-radius:20px; padding:4px 12px; color:#c084fc; font-weight:600;" id="users-count-badge">0 foydalanuvchi</div>
+    <div>👥 <span>Foydalanuvchilar</span></div>
+    <div class="u-stat-chip chip-purple" id="users-count-badge" style="font-size:11px;">0 ta</div>
   </div>
   
-  <div style="margin-bottom:14px;">
-    <input type="text" id="user-search-input" onkeyup="filterAdminUsers()" placeholder="🔍 Qidirish (Ism, Telegram ID, @username yoki Telefon)..." style="width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:14px; padding:12px 16px; color:var(--text); font-size:14px; outline:none; font-family:inherit;">
+  <!-- Stats chips -->
+  <div class="users-stats" id="users-stats-row">
+    <div class="u-stat-chip chip-green"><span>🟢</span> <span id="chip-connected">0</span> ulangan</div>
+    <div class="u-stat-chip chip-red"><span>🔴</span> <span id="chip-disconnected">0</span> ulanmagan</div>
+    <div class="u-stat-chip chip-purple"><span>🕵️</span> <span id="chip-stealth">0</span> stealth</div>
   </div>
+
+  <!-- Search -->
+  <input type="text" class="user-search" id="user-search-input" onkeyup="filterAdminUsers()" placeholder="🔍 Ism, ID, @username yoki tel raqam orqali qidiring...">
 
   <div id="users-list"><div class="empty"><div class="e-icon">👥</div><div class="e-text">Yuklanmoqda...</div></div></div>
 </div>
@@ -365,7 +473,18 @@ async function loadUsers() {
 function renderAdminUsers(users) {
   const el = document.getElementById('users-list');
   const countBadge = document.getElementById('users-count-badge');
-  if (countBadge) countBadge.textContent = `${users.length} ta foydalanuvchi`;
+  
+  // Update stat chips
+  const total = users.length;
+  const connected = users.filter(u => u.session_string).length;
+  const stealth = users.filter(u => u.is_stealth === 1).length;
+  if (countBadge) countBadge.textContent = `${total} ta`;
+  const cc = document.getElementById('chip-connected');
+  const cd = document.getElementById('chip-disconnected');
+  const cs = document.getElementById('chip-stealth');
+  if (cc) cc.textContent = connected;
+  if (cd) cd.textContent = total - connected;
+  if (cs) cs.textContent = stealth;
   
   if (!users.length) { 
     el.innerHTML = '<div class="empty"><div class="e-icon">👥</div><div class="e-text">Foydalanuvchilar topilmadi</div></div>'; 
@@ -373,26 +492,47 @@ function renderAdminUsers(users) {
   }
   
   el.innerHTML = users.map(u => {
-    let linkAction = u.username ? `window.Telegram.WebApp.openTelegramLink('https://t.me/${u.username}')` : `window.location.href='tg://user?id=${u.telegram_id}'`;
-    let isStealth = u.is_stealth === 1;
+    const isStealth = u.is_stealth === 1;
+    const isConnected = !!u.session_string;
+    
+    // Get initials / avatar content
+    const displayName = u.first_name || String(u.telegram_id);
+    const initials = displayName.slice(0,2).toUpperCase();
+    const avatarContent = isStealth ? '🕵️' : initials;
+    
+    // Connection badge
+    const connBadge = isConnected
+      ? `<span class="connected-badge">🟢 Ulangan</span>`
+      : `<span class="disconnected-badge">🔴 Ulanmagan</span>`;
+    
+    // Stealth badge
+    const stealthBadge = isStealth
+      ? `<span class="stealth-badge">🕵️ Stealth</span>`
+      : '';
+    
+    // Username link
+    const nameLink = u.username
+      ? `<a href="javascript:void(0)" onclick="window.Telegram.WebApp.openTelegramLink('https://t.me/${u.username}')" style="color:inherit;text-decoration:none;">${displayName}</a>`
+      : `<a href="javascript:void(0)" onclick="window.location.href='tg://user?id=${u.telegram_id}'" style="color:inherit;text-decoration:none;">${displayName}</a>`;
     
     return `
-    <div class="user-card" style="align-items:flex-start; position:relative; ${isStealth ? 'border-color:rgba(124,58,237,0.5); background:rgba(124,58,237,0.06);' : ''}">
-      <div class="user-avatar" style="${isStealth ? 'background:linear-gradient(135deg,#7c3aed,#4c1d95);' : ''}">${isStealth ? '🕵️' : String(u.telegram_id).slice(-2)}</div>
-      <div class="user-info" style="flex:1;">
-        <div class="u-id" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-          👤 <a href="javascript:void(0)" onclick="${linkAction}" style="color:inherit;text-decoration:none;font-weight:700;">${u.first_name ? u.first_name : u.telegram_id}</a> 
-          ${u.username ? '<span style="color:var(--accent-light);">(@' + u.username + ')</span>' : ''}
-          ${isStealth ? '<span class="badge" style="background:rgba(124,58,237,0.3); color:#c084fc; font-size:10px; padding:2px 8px;">🕵️ Yashirin (Stealth)</span>' : ''}
+    <div class="user-card ${isStealth ? 'stealth-card' : ''}">
+      <div class="user-avatar ${isStealth ? 'stealth-avatar' : ''}">${avatarContent}</div>
+      <div class="user-info">
+        <div class="u-name">${nameLink}</div>
+        ${u.username ? `<div class="u-username">@${u.username} · ID: ${u.telegram_id}</div>` : `<div class="u-username">ID: ${u.telegram_id}</div>`}
+        ${u.phone ? `<div class="u-phone">📱 +${u.phone}</div>` : ''}
+        <div class="u-bal">💰 <b>${(u.balance||0).toLocaleString()}</b> so'm</div>
+        <div class="u-status" style="margin-top:5px;">
+          ${connBadge}
+          ${stealthBadge}
+          <span style="color:var(--muted);">${u.order_count||0} buyurtma</span>
         </div>
-        ${u.phone ? '<div class="u-bal" style="color:var(--text);margin-top:2px;">📱 +' + u.phone + '</div>' : ''}
-        <div class="u-bal" style="margin-top:4px;">💰 <b>${(u.balance||0).toLocaleString()}</b> so'm</div>
-        <div class="u-status" style="margin-top:4px;">${u.session_string?'🟢 Akkaunt ulangan':'🔴 Akkaunt yo\'q'} • ${u.order_count||0} buyurtma</div>
       </div>
-      <div style="display:flex; flex-direction:column; gap:6px;">
-        <button class="btn btn-edit" style="flex:none;padding:8px 12px; font-size:11px;" title="Balans tahrirlash" onclick="openEditBalance(${u.id},${u.telegram_id},${u.balance||0})">✏️ Balans</button>
-        <button class="btn" style="flex:none;padding:8px 12px; font-size:11px; ${isStealth ? 'background:rgba(239,68,68,0.2);color:#f87171;' : 'background:rgba(124,58,237,0.2);color:#c084fc;'}" onclick="toggleStealth(${u.telegram_id})">
-          ${isStealth ? '🔓 Stealth o\'chirish' : '🕵️ Stealth yoqish'}
+      <div class="u-action-col">
+        <button class="btn-action btn-balance" onclick="openEditBalance(${u.id},${u.telegram_id},${u.balance||0})">✏️ Balans</button>
+        <button class="btn-action ${isStealth ? 'btn-stealth-off' : 'btn-stealth-on'}" onclick="toggleStealth(${u.telegram_id})">
+          ${isStealth ? '🔓 Stealth off' : '🕵️ Stealth on'}
         </button>
       </div>
     </div>`;
