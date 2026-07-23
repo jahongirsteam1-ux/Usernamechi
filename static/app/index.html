@@ -6,7 +6,6 @@
 <title>Usernamechi</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://twemoji.maxcdn.com/v/latest/twemoji.min.js" crossorigin="anonymous"></script>
 <style>
   :root {
     --bg: #07070c;
@@ -14,15 +13,58 @@
     --border: rgba(255, 255, 255, 0.08);
     --border-glow: rgba(167, 139, 250, 0.3);
     --accent: #8b5cf6;
-    --accent-light: #c084fc;
+    --accent-light: #a78bfa;
     --accent2: #06b6d4;
-    --accent2-light: #38bdf8;
+    --text: #f8fafc;
+    --muted: #94a3b8;
     --success: #10b981;
     --danger: #ef4444;
     --warning: #f59e0b;
-    --text: #f8fafc;
-    --muted: #94a3b8;
   }
+  
+  /* MODERN SVG ICON STYLING */
+  .svg-icon {
+    width: 1.2em;
+    height: 1.2em;
+    vertical-align: -0.2em;
+    display: inline-block;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+    stroke: currentColor;
+    flex-shrink: 0;
+  }
+  .svg-icon-lg {
+    width: 1.5em;
+    height: 1.5em;
+    vertical-align: -0.3em;
+  }
+  .svg-icon-xl {
+    width: 2.2em;
+    height: 2.2em;
+  }
+  .icon-glow-purple {
+    filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.6));
+    color: #c084fc;
+  }
+  .icon-glow-cyan {
+    filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.6));
+    color: #38bdf8;
+  }
+  .icon-glow-amber {
+    filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.6));
+    color: #fbbf24;
+  }
+  .icon-glow-green {
+    filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.6));
+    color: #34d399;
+  }
+  .icon-glow-red {
+    filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6));
+    color: #f87171;
+  }
+
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -420,14 +462,14 @@
 <!-- HOME PAGE -->
 <div class="page active" id="page-home">
   <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
-    <div>Salom, <span id="user-name">...</span> <span class="icon-3d">👋</span></div>
+    <div>Salom, <span id="user-name">...</span> <svg class="svg-icon icon-glow-amber icon-3d" viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v6"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 0 1 2 2v4a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg></div>
     <div style="background:rgba(139,92,246,0.15); border:1px solid rgba(167,139,250,0.3); border-radius:20px; padding:6px 14px; font-size:12px; font-weight:700; color:#c084fc; display:flex; align-items:center; gap:6px;">
       <span style="width:8px; height:8px; background:#10b981; border-radius:50%; display:inline-block; box-shadow:0 0 8px #10b981;" class="icon-3d-pulse"></span> Online
     </div>
   </div>
 
   <div class="balance-card card">
-    <div class="label">💰 Joriy Balansingiz</div>
+    <div class="label"><svg class="svg-icon icon-glow-amber" viewBox="0 0 24 24"><path d="M20 7h-3a2 2 0 0 1-2-2 2 2 0 0 0-2-2H5a2 2 0 0 2-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 14h.01"/></svg> Joriy Balansingiz</div>
     <div class="balance-row">
       <div class="amount" id="home-balance">0</div>
       <div class="sub">so'm</div>
@@ -437,12 +479,12 @@
 
   <div class="stats">
     <div class="stat-card">
-      <div class="icon icon-3d">🚀</div>
+      <div class="icon icon-3d"><svg class="svg-icon-lg icon-glow-purple" viewBox="0 0 24 24"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.71 1.26-2 1.26-2l-4.26-4.26s-1.29.55-2 1.26z"/><path d="m12 15-3-3 7.35-7.35c.99-.99 2.54-1.04 3.58-.1.95 1.04.9 2.59-.1 3.58L12 15z"/></svg></div>
       <div class="val" id="stat-orders">0</div>
       <div class="lbl">Buyurtmalar</div>
     </div>
     <div class="stat-card">
-      <div class="icon icon-3d icon-3d-fast">💎</div>
+      <div class="icon icon-3d icon-3d-fast"><svg class="svg-icon-lg icon-glow-cyan" viewBox="0 0 24 24"><path d="M6 3h12l4 6-10 12L2 9z"/></svg></div>
       <div class="val" id="stat-usernames">0</div>
       <div class="lbl">Band qilingan</div>
     </div>
@@ -450,7 +492,7 @@
 
   <!-- INSTANT USERNAME CHECKER WIDGET -->
   <div class="card">
-    <div class="section-title"><span class="icon-3d">🔍</span> <span>Tezkor Username Tekshirgich</span></div>
+    <div class="section-title"><span class="icon-3d"><svg class="svg-icon icon-glow-purple" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span> <span>Tezkor Username Tekshirgich</span></div>
     <div style="font-size:13px; color:var(--muted); margin-bottom:12px;">Telegram'da istalgan username hozir bo'sh yoki bandligini darhol tekshiring:</div>
     <div style="display:flex; gap:8px;">
       <input type="text" id="check-username-input" placeholder="super_name" style="flex:1; padding:12px 14px; border-radius:12px; font-size:14px; outline:none; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); color:var(--text);">
@@ -461,7 +503,7 @@
 
   <!-- TOP LISTINGS CAROUSEL -->
   <div class="card" id="top-carousel-card" style="display:none; padding:18px 18px 14px;">
-    <div class="section-title" style="margin-bottom:12px;"><span class="icon-3d">🔥</span> <span>TOP</span> E'lonlar</div>
+    <div class="section-title" style="margin-bottom:12px;"><span class="icon-3d"><svg class="svg-icon icon-glow-amber" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></span> <span>TOP</span> E'lonlar</div>
     <div id="top-carousel-wrap" style="display:flex; gap:12px; overflow-x:auto; padding-bottom:8px; scrollbar-width:none;">
       <!-- Carousel items will drop here -->
     </div>
@@ -469,32 +511,32 @@
 
   <!-- USERNAME SOTIB OLISH FORMASI -->
   <div class="card">
-    <div class="section-title"><span class="icon-3d">✨</span> <span>Username</span> sotib olish</div>
+    <div class="section-title"><span class="icon-3d"><svg class="svg-icon icon-glow-purple" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/></svg></span> <span>Username</span> sotib olish</div>
 
     <div class="card" id="no-session-warn" style="display:none;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);border-radius:16px;padding:14px;margin-bottom:14px;color:#f87171;font-size:13px;font-weight:600;">
-      ⚠️ Avval <b>Akkaunt</b> bo'limiga o'tib, Telegram akkauntingizni ulang!
+      <svg class="svg-icon icon-glow-red" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Avval <b>Akkaunt</b> bo'limiga o'tib, Telegram akkauntingizni ulang!
     </div>
 
     <div class="form-group">
-      <label>🎯 Qanday username qidiramiz?</label>
+      <label><svg class="svg-icon icon-glow-purple" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> Qanday username qidiramiz?</label>
       <div style="display:flex; gap:8px; margin-bottom:8px;">
-        <button id="btn-cat-short" class="btn btn-outline" style="margin:0; flex:1; font-size:13px; padding:12px 8px; border-radius:14px;" onclick="setCategory('qisqa')">⚡ Qisqa noyob so'z</button>
-        <button id="btn-cat-smart" class="btn btn-primary" style="margin:0; flex:1; font-size:13px; padding:12px 8px; border-radius:14px;" onclick="setCategory('turli')">🎨 Turli ko'rinishdagi</button>
+        <button id="btn-cat-short" class="btn btn-outline" style="margin:0; flex:1; font-size:13px; padding:12px 8px; border-radius:14px;" onclick="setCategory('qisqa')"><svg class="svg-icon icon-glow-amber" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Qisqa noyob so'z</button>
+        <button id="btn-cat-smart" class="btn btn-primary" style="margin:0; flex:1; font-size:13px; padding:12px 8px; border-radius:14px;" onclick="setCategory('turli')"><svg class="svg-icon icon-glow-cyan" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.92 0 1.7-.71 1.7-1.63 0-.44-.18-.85-.46-1.16-.27-.3-.44-.71-.44-1.21 0-.92.71-1.7 1.63-1.7H17c2.76 0 5-2.24 5-5 0-4.42-4.03-8-10-8z"/></svg> Turli ko'rinishdagi</button>
       </div>
       <div style="display:flex; gap:8px; margin-bottom:8px;">
-        <button id="btn-cat-custom" class="btn btn-outline" style="margin:0; flex:1; font-size:13px; padding:12px 8px; border-radius:14px;" onclick="setCategory('custom')">✏️ O'zim so'z kiritaman</button>
+        <button id="btn-cat-custom" class="btn btn-outline" style="margin:0; flex:1; font-size:13px; padding:12px 8px; border-radius:14px;" onclick="setCategory('custom')"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg> O'zim so'z kiritaman</button>
       </div>
       <div id="custom-word-container" style="display:none; margin-bottom:12px;">
         <input type="text" id="buy-custom-word" placeholder="Masalan: ali, anvar, shop..." class="input" style="width:100%;">
       </div>
       <input type="hidden" id="buy-category" value="turli">
       <div style="color:var(--muted);font-size:12px;margin-top:6px;font-weight:500;">
-        💡 Tanlangan yo'nalish bo'yicha yuzlab premium variantlar yasaladi
+        <svg class="svg-icon icon-glow-amber" viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg> Tanlangan yo'nalish bo'yicha yuzlab premium variantlar yasaladi
       </div>
     </div>
     
     <div class="form-group" id="lang-group">
-      <label>🌐 Qaysi tilda bo'lsin?</label>
+      <label><svg class="svg-icon icon-glow-cyan" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> Qaysi tilda bo'lsin?</label>
       <div style="display:flex; gap:8px; margin-bottom:8px;">
         <button id="btn-lang-uz" class="btn btn-primary" style="margin:0; flex:1; font-size:13px; padding:12px 8px; border-radius:14px;" onclick="setLang('uz')">🇺🇿 O'zbekcha</button>
         <button id="btn-lang-en" class="btn btn-outline" style="margin:0; flex:1; font-size:13px; padding:12px 8px; border-radius:14px;" onclick="setLang('en')">🇬🇧 Inglizcha</button>
@@ -511,10 +553,10 @@
       <div class="price-label">To'lanadigan summa</div>
       <div class="price-val" id="search-total-price">5,000 so'm</div>
     </div>
-    <div id="search-balance-warn" style="display:none;color:#f87171;font-size:13px;font-weight:600;margin-top:8px;text-align:center;">❌ Balans yetarli emas!</div>
+    <div id="search-balance-warn" style="display:none;color:#f87171;font-size:13px;font-weight:600;margin-top:8px;text-align:center;"><svg class="svg-icon icon-glow-red" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Balans yetarli emas!</div>
 
     <button class="btn btn-primary" id="search-btn" onclick="startSearch()" style="margin-top:14px;">
-      💳 To'lab qidirish
+      <svg class="svg-icon" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> To'lab qidirish
     </button>
   </div>
 
@@ -556,7 +598,7 @@
 
 <!-- MONITORING PAGE -->
 <div class="page" id="page-monitor">
-  <div class="page-header">🎯 <span>Nishon olish</span> (Monitoring)</div>
+  <div class="page-header"><svg class="svg-icon icon-glow-purple" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> <span>Nishon olish</span> (Monitoring)</div>
 
   <div class="card">
     <div style="font-size:13px; color:var(--muted); margin-bottom:16px;">
@@ -570,13 +612,13 @@
     </div>
 
     <button class="btn btn-primary" onclick="startMonitor()">
-      🎯 Kuzatuvni boshlash
+      <svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> Kuzatuvni boshlash
     </button>
   </div>
 
   <!-- POYLASH SECTION MOVED HERE -->
   <div class="card" id="subscriptions-wrap" style="display:none; margin-top:20px;">
-    <div style="font-weight:700; font-size:16px; margin-bottom:8px;">🔔 Poylash (Obunalar)</div>
+    <div style="font-weight:700; font-size:16px; margin-bottom:8px;"><svg class="svg-icon icon-glow-cyan" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Poylash (Obunalar)</div>
     <div style="font-size:13px; color:var(--muted); margin-bottom:12px;">Kerakli so'zlarni kiriting. Sotuvda mos username chiqsa, bot sizga xabar beradi.</div>
     <div style="display:flex; gap:8px; margin-bottom:12px;">
       <input type="text" id="sub-keyword-input" placeholder="Masalan: biznes" style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--border); background:rgba(255,255,255,0.05); color:#fff; font-size:14px; outline:none;">
@@ -588,14 +630,14 @@
   <div class="card" style="padding:0;overflow:hidden; margin-top:20px;">
     <div style="padding:16px 20px 12px;font-size:15px;font-weight:700;">Aktiv nishonlar</div>
     <div id="monitor-list">
-      <div style="text-align:center;padding:24px;color:var(--muted);font-size:13px;">📭 Hozircha nishonlar yo'q</div>
+      <div style="text-align:center;padding:24px;color:var(--muted);font-size:13px;"><svg class="svg-icon icon-glow-purple" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-7z"/><path d="M5.45 5.11 2 12v0h20v0l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg> Hozircha nishonlar yo'q</div>
     </div>
   </div>
 </div>
 
 <!-- BALANCE PAGE -->
 <div class="page" id="page-balance">
-  <div class="page-header">💳 <span>Balans</span></div>
+  <div class="page-header"><svg class="svg-icon icon-glow-cyan" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> <span>Balans</span></div>
 
   <div class="balance-card card">
     <div class="label">Joriy balans</div>
@@ -609,11 +651,11 @@
       <label>QANCHA TO'LDIRMOQCHISIZ?</label>
       <input type="number" id="topup-amount" placeholder="50000" min="15000">
       <div style="color:var(--muted);font-size:11px;margin-top:6px;">
-        💡 Minimal summa: 15,000 so'm
+        <svg class="svg-icon icon-glow-amber" viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg> Minimal summa: 15,000 so'm
       </div>
     </div>
     <button class="btn btn-primary" onclick="requestTopup()">
-      Karta raqamini olish
+      <svg class="svg-icon" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Karta raqamini olish
     </button>
   </div>
 
@@ -621,24 +663,24 @@
     <div class="section-title">Karta raqamiga to'lang</div>
     
     <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:12px;margin-bottom:16px;color:#f87171;font-size:13px;font-weight:600;">
-      DIQQAT! Faqat quyidagi summani o'tkazing, aks holda tasdiqlanmaydi!
+      <svg class="svg-icon icon-glow-red" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> DIQQAT! Faqat quyidagi summani o'tkazing, aks holda tasdiqlanmaydi!
     </div>
 
     <div style="margin-bottom:8px;color:var(--muted);font-size:12px;">O'tkaziladigan summa:</div>
     <div style="font-size:32px;font-weight:800;color:var(--success);margin-bottom:8px;" id="pay-exact-amount">0 so'm</div>
 
     <div style="font-size:18px;font-weight:700;color:var(--warning);margin-bottom:20px;">
-      ⏳ To'lov uchun vaqt: <span id="topup-timer">03:00</span>
+      <svg class="svg-icon icon-glow-amber" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> To'lov uchun vaqt: <span id="topup-timer">03:00</span>
     </div>
 
     <div style="background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:16px;margin-bottom:16px;">
       <div style="color:var(--muted);font-size:12px;margin-bottom:6px;">To'lov kartasi:</div>
       <div id="card-number" style="font-size:20px;font-weight:700;letter-spacing:2px;">Yuklanmoqda...</div>
-      <button onclick="copyCard()" style="background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;margin-top:8px;">📋 Nusxalash</button>
+      <button onclick="copyCard()" style="background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;margin-top:8px;display:inline-flex;align-items:center;gap:4px;"><svg class="svg-icon" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Nusxalash</button>
     </div>
 
     <div style="color:var(--muted);font-size:12px;">
-      ✅ To'lov qilishingiz bilan balans avtomat to'ldiriladi. Izoh yozish yoki chek tashlash shart emas.
+      <svg class="svg-icon icon-glow-green" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> To'lov qilishingiz bilan balans avtomat to'ldiriladi. Izoh yozish yoki chek tashlash shart emas.
     </div>
     
     <button class="btn btn-outline" style="margin-top:16px;" onclick="cancelTopup()">Bekor qilish</button>
@@ -648,8 +690,8 @@
 <!-- MARKETPLACE PAGE -->
 <div class="page" id="page-market">
   <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
-    <div>🛒 <span>Sotuv bozori</span></div>
-    <button class="btn btn-primary" style="padding:6px 12px; width:auto; font-size:12px; margin:0;" onclick="openPostModal()">➕ E'lon joylash</button>
+    <div><svg class="svg-icon icon-glow-cyan" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg> <span>Sotuv bozori</span></div>
+    <button class="btn btn-primary" style="padding:6px 12px; width:auto; font-size:12px; margin:0;" onclick="openPostModal()"><svg class="svg-icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> E'lon joylash</button>
   </div>
   
   <div style="display:flex;gap:10px;margin-bottom:16px;">
@@ -692,7 +734,7 @@
   </div>
   
   <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:12px;margin-bottom:16px;color:#f87171;font-size:13px;font-weight:600;">
-    DIQQAT! Karta raqamiga aynan quyidagi summani o'tkazing:
+    <svg class="svg-icon icon-glow-red" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> DIQQAT! Karta raqamiga aynan quyidagi summani o'tkazing:
   </div>
 
   <div style="text-align:center;margin-bottom:16px;">
@@ -705,7 +747,7 @@
   </div>
   
   <div style="color:var(--muted);font-size:12px;text-align:center;margin-bottom:16px;">
-    ✅ To'lov qilishingiz bilan username profilingizga avtomatik o'tkaziladi!
+    <svg class="svg-icon icon-glow-green" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> To'lov qilishingiz bilan username profilingizga avtomatik o'tkaziladi!
   </div>
 
   <button class="btn btn-primary" onclick="closeMarketBuy()">Yopish</button>
@@ -748,11 +790,11 @@
 
 <!-- ACCOUNT PAGE -->
 <div class="page" id="page-account">
-  <div class="page-header">🔗 <span>Akkaunt</span></div>
+  <div class="page-header"><svg class="svg-icon icon-glow-purple" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> <span>Akkaunt</span></div>
 
   <!-- PREMIUM SECTION -->
   <div class="card" id="premium-wrap" style="background:linear-gradient(135deg,rgba(245,158,11,0.1),rgba(217,119,6,0.05)); border-color:rgba(245,158,11,0.3);">
-    <div style="font-weight:700; font-size:16px; margin-bottom:8px; color:#fbbf24;">👑 Premium Akkaunt</div>
+    <div style="font-weight:700; font-size:16px; margin-bottom:8px; color:#fbbf24; display:flex; align-items:center; gap:6px;"><svg class="svg-icon icon-glow-amber" viewBox="0 0 24 24"><path d="m2 4 3 12h14l3-12-6 7-4-8-4 8z"/></svg> Premium Akkaunt</div>
     <div style="font-size:13px; color:var(--muted); margin-bottom:12px;">Sotuv komissiyasini 5% gacha kamaytiring va e'lonlaringizni ajratib ko'rsating. (Narxi: <span id="lbl-premium-price">20,000</span> so'm / 30 kun)</div>
     <button class="btn btn-primary" id="btn-buy-premium" onclick="buyPremium()" style="background:linear-gradient(135deg, #f59e0b, #d97706); margin:0;">Sotib olish</button>
   </div>
@@ -764,7 +806,7 @@
 
     <!-- Kartaga yechish formasi -->
     <div id="withdraw-form" style="display:none;margin-top:4px;border-top:1px solid rgba(255,255,255,0.1);padding-top:16px;">
-      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;">💳 Kartaga yechish</div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;"><svg class="svg-icon icon-glow-green" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Kartaga yechish</div>
       <div class="form-group">
         <label>SUMMA (so'm)</label>
         <input type="number" id="withdraw-amount" placeholder="Min 10,000" min="10000">
@@ -777,35 +819,35 @@
         <label>KARTA EGASI (Ism Familiya)</label>
         <input type="text" id="withdraw-name" placeholder="Ali Valiyev">
       </div>
-      <button class="btn btn-primary" onclick="submitWithdraw()">✅ Tasdiqlash</button>
+      <button class="btn btn-primary" onclick="submitWithdraw()"><svg class="svg-icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Tasdiqlash</button>
       <button class="btn btn-outline" onclick="document.getElementById('withdraw-form').style.display='none'; document.getElementById('transfer-form').style.display='none';">❌ Bekor qilish</button>
     </div>
 
     <!-- Asosiy balansga o'tkazish formasi -->
     <div id="transfer-form" style="display:none;margin-top:4px;border-top:1px solid rgba(255,255,255,0.1);padding-top:16px;">
-      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;">🔄 Asosiy balansga o'tkazish</div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;"><svg class="svg-icon icon-glow-purple" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg> Asosiy balansga o'tkazish</div>
       <div class="form-group">
         <label>SUMMA (so'm)</label>
         <input type="number" id="transfer-amount" placeholder="Min 1,000" min="1000">
       </div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">💡 Sotuvchi balansingizdan asosiy balansingizga o'tkaziladi (darhol)</div>
-      <button class="btn btn-primary" style="background:linear-gradient(135deg,#7c3aed,#06b6d4);" onclick="submitTransferToMain()">✅ O'tkazish</button>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;"><svg class="svg-icon icon-glow-amber" viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg> Sotuvchi balansingizdan asosiy balansingizga o'tkaziladi (darhol)</div>
+      <button class="btn btn-primary" style="background:linear-gradient(135deg,#7c3aed,#06b6d4);" onclick="submitTransferToMain()"><svg class="svg-icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> O'tkazish</button>
       <button class="btn btn-outline" onclick="document.getElementById('withdraw-form').style.display='none'; document.getElementById('transfer-form').style.display='none';">❌ Bekor qilish</button>
     </div>
 
     <!-- Ikki tugma -->
     <div id="seller-action-btns" style="display:flex; gap:10px;">
-      <button class="btn btn-primary" style="margin:0; flex:1; background:linear-gradient(135deg,#10b981,#06b6d4); font-size:13px;" onclick="document.getElementById('withdraw-form').style.display='block'; document.getElementById('transfer-form').style.display='none'; document.getElementById('seller-action-btns').style.display='none';">💳 Kartaga yechish</button>
-      <button class="btn btn-primary" style="margin:0; flex:1; background:linear-gradient(135deg,#7c3aed,#a78bfa); font-size:13px;" onclick="document.getElementById('transfer-form').style.display='block'; document.getElementById('withdraw-form').style.display='none'; document.getElementById('seller-action-btns').style.display='none';">🔄 Asosiy balansga</button>
+      <button class="btn btn-primary" style="margin:0; flex:1; background:linear-gradient(135deg,#10b981,#06b6d4); font-size:13px;" onclick="document.getElementById('withdraw-form').style.display='block'; document.getElementById('transfer-form').style.display='none'; document.getElementById('seller-action-btns').style.display='none';"><svg class="svg-icon" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Kartaga yechish</button>
+      <button class="btn btn-primary" style="margin:0; flex:1; background:linear-gradient(135deg,#7c3aed,#a78bfa); font-size:13px;" onclick="document.getElementById('transfer-form').style.display='block'; document.getElementById('withdraw-form').style.display='none'; document.getElementById('seller-action-btns').style.display='none';"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg> Asosiy balansga</button>
     </div>
   </div>
 
   <!-- REFERRAL SYSTEM CARD -->
   <div class="card" style="background:linear-gradient(135deg, rgba(139,92,246,0.22) 0%, rgba(6,182,212,0.14) 100%); border:1px solid rgba(167,139,250,0.4); box-shadow:0 12px 32px rgba(139,92,246,0.18);">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-      <div class="section-title" style="margin:0;"><span class="icon-3d">🎁</span> <span>Taklif & Bonus</span></div>
-      <div style="background:rgba(16,185,129,0.2); border:1px solid rgba(16,185,129,0.4); color:#34d399; font-size:11px; font-weight:800; padding:4px 10px; border-radius:12px;">
-        ⚡ 5% KESHBEK
+      <div class="section-title" style="margin:0;"><span class="icon-3d"><svg class="svg-icon icon-glow-cyan" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg></span> <span>Taklif & Bonus</span></div>
+      <div style="background:rgba(16,185,129,0.2); border:1px solid rgba(16,185,129,0.4); color:#34d399; font-size:11px; font-weight:800; padding:4px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;">
+        <svg class="svg-icon icon-glow-amber" style="width:1em;height:1em;" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> 5% KESHBEK
       </div>
     </div>
     
@@ -824,7 +866,7 @@
     </div>
 
     <button class="btn btn-primary" onclick="copyRefLink()" style="margin:0; width:100%; background:linear-gradient(135deg,#8b5cf6,#06b6d4); font-size:13px; padding:12px;">
-      📋 Havoladan nusxalash
+      <svg class="svg-icon" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Havoladan nusxalash
     </button>
   </div>
 
