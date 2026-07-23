@@ -858,20 +858,25 @@ async def search_sniper(telegram_id: int, search_id: int, category: str, lang: s
         import aiohttp
 
         async def is_on_fragment(sess, uname: str) -> bool:
-            """Fragment.com saytidan username auksionda ekanligini tekshiradi."""
+            """Fragment.com saytida username auksionda yoki sotuvda ekanligini tekshiradi.
+            True  => Fragmentda bor, foydalanuvchiga ko'rsatma!
+            False => Fragmentda yo'q, haqiqiy bo'sh username."""
             try:
                 url = f"https://fragment.com/username/{uname.lower()}"
                 async with sess.get(url, allow_redirects=True, timeout=aiohttp.ClientTimeout(total=6)) as r:
-                    if r.status != 200:
-                        return False
+                    if r.status == 404:
+                        return False  # Sahifa topilmadi => fragmentda yo'q
                     html = await r.text()
-                    # Fragment da bo'lsa 'table-cell-value tm-value' mavjud bo'ladi
-                    # Yoki 'Taken' / 'On auction' kabi belgilar
-                    return ('Taken' in html or 'For sale' in html or 'On auction' in html 
-                            or 'table-cell-value tm-value' in html
-                            or 'status-avail' not in html and 'Available' not in html and 'tgme_page' not in html)
+                    # Fragment da bo'lsa aukcion yoki narx ko'rsatkichlari bo'ladi
+                    FRAGMENT_MARKERS = [
+                        'Taken', 'For sale', 'On auction',
+                        'table-cell-value tm-value',
+                        'place-bid', 'tm-section-header',
+                        'Buy for', 'Current price'
+                    ]
+                    return any(m in html for m in FRAGMENT_MARKERS)
             except Exception:
-                return False  # tekshirib bo'lmasa, ko'rsatib yuboramiz (xavfsiz tomon)
+                return False  # Tarmoq xatosida xavfsiz tomon: ko'rsatib yuboramiz
         
         async with aiohttp.ClientSession(headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}) as session:
             for username in targets:
